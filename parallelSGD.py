@@ -11,6 +11,17 @@ from scipy.sparse import coo_matrix
 import multiprocessing as mp
 import ctypes
 import random
+import gflags
+
+FLAGS = gflags.FLAGS
+gflags.DEFINE_string('train', 'netflix_mm_10000_1000', 'Training file')
+gflags.DEFINE_string('test', 'netflix_mm_10000_1000', 'Testing file')
+gflags.DEFINE_integer('rank', 10, 'Matrix Rank')
+gflags.DEFINE_float('lamb', 0.1, 'Lambda')
+gflags.DEFINE_float('eta', 0.01, 'Learning rate')
+gflags.DEFINE_integer('maxit', 10, 'Maximum iterations')
+gflags.DEFINE_integer('rmseint', 5, 'RMSE computation interval')
+
 
 def RMSEWorker(x):
     global userOffset, movieOffset, mp_arr, latentShape
@@ -108,28 +119,35 @@ def SGD(data, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
             p.map(update, slices[i])
         it += 1
 
-        print "%d : time %f : RMSE %s " % (it, time.time() - start, "[NE]" if it % 5 else str(RMSE2(slices, data.nnz, p)))
+        print "%d : time %f : RMSE %s " % (it, time.time() - start, "[NE]" if it % FLAGS.rmseint else str(RMSE2(slices, data.nnz, p)))
 
     print "Total training time %f" % (time.time() - t1)
     return latent
 
 
-random.seed(1)
-fileTraining = "netflix_mm_10000_1000"
-fileTesting = "netflix_mm_10000_1000"
-if len(sys.argv) >= 2:
-    fileTraining = sys.argv[1]
-if len(sys.argv) >= 3:
-    fileTesting = sys.argv[2]
+def main(argv):
+    try:
+      argv = FLAGS(argv)  # parse flags
+    except gflags.FlagsError, e:
+      print '%s\\nUsage: %s ARGS\\n%s' % (e, sys.argv[0], FLAGS)
+      sys.exit(1)
 
-print "Training Dataset : %s" % fileTraining
-print "Testing Dataset : %s" % fileTesting
+    random.seed(1)
+    np.random.seed(1)
 
-dataTraining = io.mmread("data/" + fileTraining)
-dataTesting = io.mmread("data/" + fileTesting)
-latent = SGD(dataTraining, maxit=20, eta_=0.01)
-print "RMSE Train %f" % (RMSE(dataTraining, latent))
-print "RMSE Test  %f" % (RMSE(dataTesting, latent))
+    print "Training Dataset : %s" % FLAGS.train
+    print "Testing Dataset : %s" % FLAGS.test
+
+    dataTraining = io.mmread("data/" + FLAGS.train)
+    dataTesting = io.mmread("data/" + FLAGS.test)
+
+    latent = SGD(dataTraining, FLAGS.eta, FLAGS.lamb, FLAGS.rank, FLAGS.maxit)
+    print "RMSE Train %f" % (RMSE(dataTraining, latent))
+    print "RMSE Test  %f" % (RMSE(dataTesting, latent))
+
+if __name__ == '__main__':
+    main(sys.argv)
+    
 
 
 
