@@ -1,68 +1,82 @@
-
-# coding: utf-8
-
-# In[3]:
-
 from __future__ import division
+import sys
 import scipy as sp
 import numpy as np
 from scipy import io
 import itertools
 import math
 import time
-import multiprocessing
-from multiprocessing import Lock, Pool
-from collections import deque
+from multiprocessing import Pool
 from scipy.sparse import coo_matrix
 import multiprocessing as mp
 import ctypes
 
+def RMSEchild(x):
+    global userOffset, movieOffset, mp_arr, latentShape
+    r0, c0, data = x
+    latent = np.frombuffer(mp_arr.get_obj()).reshape(latentShape)
 
-lock = Lock()
-#data = io.mmread("data/netflix_mm_10000_1000")
-data = io.mmread("data/netflix_mm_50000_5000")
-data.shape
-
-
-# In[18]:
-
-def RMSE(data, latent):
-    userOffset = 0
-    movieOffset = data.shape[0]
-    
     cx = data.tocoo() 
     err = 0
     for user,movie,rating in itertools.izip(cx.row, cx.col, cx.data):
-        vUser = latent[user + userOffset]
-        vMovie = latent[movie + movieOffset]
-        err += (vUser.dot(vMovie) - rating) ** 2
-        #print "%f %f" % (vUser.dot(vMovie), rating)
-    return math.sqrt(err / data.nnz)
-    #return err
+        try:
+            vMovie = latent[movie + c0 + movieOffset]
+            vUser = latent[user + r0 + userOffset]
+            err += (vUser.dot(vMovie) - rating) ** 2
+        except (KeyboardInterrupt, SystemExit):
+            break
+    return err
+
+def RMSE(slices, nnz, p):
+    err = 0
+    for i in range(len(slices)):
+        err += sum(p.map(RMSEchild, slices[i]))
+    return math.sqrt(err / nnz)
         
 
 def update(x):
-    global userOffset, movieOffset, mp_arr, latentShape
-    r0, c0, data, eta, lambduh = x
+    global userOffset, movieOffset, mp_arr, latentShape, eta, lambduh
+    r0, c0, data = x
     latent = np.frombuffer(mp_arr.get_obj()).reshape(latentShape)
 
     cx = data.tocoo()
     for user,movie,rating in itertools.izip(cx.row, cx.col, cx.data):
-        vMovie = latent[movie + c0 + movieOffset]
-        vUser = latent[user + r0 + userOffset] 
-        vUserTmp = vUser.copy()
-        
-        e = vUser.dot(vMovie) - rating
-        c1 = (1 - eta * lambduh)
-        
-        vUser[:] = c1 * vUser - eta * e * vMovie
-        vMovie[:] = c1 * vMovie - eta * e * vUserTmp
+        try:
+            vMovie = latent[movie + c0 + movieOffset]
+            vUser = latent[user + r0 + userOffset] 
+            vUserTmp = vUser.copy()
+            
+            e = vUser.dot(vMovie) - rating
+            c1 = (1 - eta * lambduh)
+            
+            vUser[:] = c1 * vUser - eta * e * vMovie
+            vMovie[:] = c1 * vMovie - eta * e * vUserTmp
+        except (KeyboardInterrupt, SystemExit):
+            break
 
-# In[ ]:
+def slice(data, cores):
+    size = data.shape
+    splitRow = np.round(np.linspace(0, size[0], cores + 1)).astype(int)
+    splitCol = np.round(np.linspace(0, size[1], cores + 1)).astype(int)
 
-def SGD(data, eta = 0.01, lambduh = 0.1, maxit = 10):
-    global latentShape, userOffset, movieOffset, mp_arr
-    rank = 10
+    datacsr = data.tocsr()
+    rowSlices = [None] * cores
+    slices = [[None] * cores for x in range(cores)]
+
+    for i in range(cores):
+        rowSlices[i] = datacsr[splitRow[i]:splitRow[i+1],:].tocsc()
+
+    for i in range(cores):
+        for j in range(cores):
+            colj = (i + j) % cores
+            slices[i][j] = (splitRow[j], splitCol[colj], rowSlices[j][:,splitCol[colj]:splitCol[colj+1]])
+    return slices
+
+
+def SGD(data, reg_eta = 0.01, reg_lambduh = 0.1, rank = 10, maxit = 10):
+    global latentShape, userOffset, movieOffset, mp_arr, eta, lambduh
+    eta = reg_eta
+    lambduh = reg_lambduh
     userOffset = 0
     movieOffset = data.shape[0]
     
@@ -71,36 +85,29 @@ def SGD(data, eta = 0.01, lambduh = 0.1, maxit = 10):
     latent = np.frombuffer(mp_arr.get_obj()).reshape(latentShape)
     latent[:] = np.random.rand(sum(data.shape), rank)
 
-    size = data.shape
-    cores = multiprocessing.cpu_count()
-    splitRow = np.round(np.linspace(0, size[0], cores + 1)).astype(int)
-    splitCol = np.round(np.linspace(0, size[1], cores + 1)).astype(int)
+    cores = mp.cpu_count()
+    slices = slice(data, cores)
 
     p = Pool(cores)
-
     it = 0
-    print "Initial RMSE %f" % (RMSE(data, latent))
-
-    datacsr = data.tocsr()
-    rowSlices = [None] * cores
-    slices = [None] * cores
-    for i in range(cores):
-        rowSlices[i] = datacsr[splitRow[i]:splitRow[i+1],:].tocsc()
-
+    print "Initial RMSE %f" % (RMSE(slices, data.nnz, p))
     while it < maxit:
         oldLatent = latent.copy()
         start = time.time()
 
-
-        for i in range(cores):
-            for j in range(cores):
-                colj = (i + j) % cores
-                slices[j] = (splitRow[j], splitCol[colj], rowSlices[j][:,splitCol[colj]:splitCol[colj+1]], eta, lambduh)
-            p.map(update, slices)
+        for i in range(len(slices)):
+            p.map(update, slices[i])
         it += 1
-        print "time %f" % (time.time() - start)
-        print "%f" % (RMSE(data, latent))
-        print np.sum(oldLatent - latent)
 
-SGD(data)
+        print "%d : time %f : RMSE %f " % (it, time.time() - start, RMSE(slices, data.nnz, p))
 
+
+
+
+dataset = "netflix_mm_10000_1000"
+if len(sys.argv) == 2:
+    dataset = sys.argv[1]
+
+print "Dataset : %s" % dataset
+data = io.mmread("data/" + dataset)
+SGD(data, maxit=20)
