@@ -11,10 +11,11 @@ import itertools
 import math
 import time
 import multiprocessing
-from multiprocessing import Lock
-from multiprocessing.pool import ThreadPool
+from multiprocessing import Lock, Pool
 from collections import deque
 from scipy.sparse import coo_matrix
+import multiprocessing as mp
+import ctypes
 
 
 lock = Lock()
@@ -40,13 +41,11 @@ def RMSE(data, latent):
         
 
 def update(x):
-    global latent, userOffset, movieOffset, lock
+    global userOffset, movieOffset, mp_arr, latentShape
     r0, c0, data, eta, lambduh = x
+    latent = np.frombuffer(mp_arr.get_obj()).reshape(latentShape)
 
     cx = data.tocoo()
-
-    p = True
-    oldLatent = latent.copy()
     for user,movie,rating in itertools.izip(cx.row, cx.col, cx.data):
         vMovie = latent[movie + c0 + movieOffset]
         vUser = latent[user + r0 + userOffset] 
@@ -57,28 +56,26 @@ def update(x):
         
         vUser[:] = c1 * vUser - eta * e * vMovie
         vMovie[:] = c1 * vMovie - eta * e * vUserTmp
-        #if p:
-            #with lock:
-                #print vUser, vUserTmp, latent[user + r0 + userOffset]
-                #print "==="
-            #p = False
-    #print np.sum(oldLatent - latent)
 
 # In[ ]:
 
 def SGD(data, eta = 0.01, lambduh = 0.1, maxit = 2):
-    global latent, userOffset, movieOffset
+    global latentShape, userOffset, movieOffset, mp_arr
     rank = 10
     userOffset = 0
     movieOffset = data.shape[0]
-    latent = np.random.rand(sum(data.shape), rank)
+    
+    latentShape = (sum(data.shape), rank)
+    mp_arr = mp.Array(ctypes.c_double, latentShape[0] * latentShape[1])
+    latent = np.frombuffer(mp_arr.get_obj()).reshape(latentShape)
+    latent[:] = np.random.rand(sum(data.shape), rank)
 
     size = data.shape
-    cores = 4 
+    cores = multiprocessing.cpu_count()
     splitRow = np.round(np.linspace(0, size[0], cores + 1)).astype(int)
     splitCol = np.round(np.linspace(0, size[1], cores + 1)).astype(int)
 
-    p = ThreadPool(cores)
+    p = Pool(cores)
 
     it = 0
     print "Initial RMSE %f" % (RMSE(data, latent))
