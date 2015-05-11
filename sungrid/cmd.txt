@@ -1,0 +1,3 @@
+echo a > a.txt
+echo b > b.txt
+echo c > c.txt
