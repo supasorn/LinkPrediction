@@ -19,7 +19,8 @@ import ctypes
 
 
 lock = Lock()
-data = io.mmread("data/netflix_mm_10000_1000")
+#data = io.mmread("data/netflix_mm_10000_1000")
+data = io.mmread("data/netflix_mm_50000_5000")
 data.shape
 
 
