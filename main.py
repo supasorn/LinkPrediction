@@ -9,6 +9,7 @@ import numpy as np
 from scipy import io
 import itertools
 import math
+import time
 
 
 # In[4]:
@@ -29,6 +30,7 @@ def RMSE(data, latent):
         vUser = latent[user + userOffset]
         vMovie = latent[movie + movieOffset]
         err += (vUser.dot(vMovie) - rating) ** 2
+        #print "%f %f" % (vUser.dot(vMovie), rating)
     return math.sqrt(err / data.nnz)
     #return err
         
@@ -36,7 +38,7 @@ def RMSE(data, latent):
 
 # In[ ]:
 
-def SGD(data, eta = 0.01, lambduh = 0.1, maxit = 2):
+def SGD(data, eta = 0.01, lambduh = 0.1, maxit = 10):
     rank = 10
     userOffset = 0
     movieOffset = data.shape[0]
@@ -47,6 +49,7 @@ def SGD(data, eta = 0.01, lambduh = 0.1, maxit = 2):
     cx = data.tocoo() 
     print "Initial RMSE %f" % (RMSE(data, latent))
     while it < maxit:
+        start = time.time()
         for user,movie,rating in itertools.izip(cx.row, cx.col, cx.data):
             vMovie = latent[movie + movieOffset]
             vUser = latent[user + userOffset] 
@@ -60,12 +63,12 @@ def SGD(data, eta = 0.01, lambduh = 0.1, maxit = 2):
             
             # update error
             innerIt += 1
-            if innerIt % 500 == 0:
-                print "%d - %f" % (innerIt, RMSE(data, latent))
+            #if innerIt % 100000 == 0:
         it += 1
+        print "time %f" % (time.time() - start)
+        print "%d - %f" % (innerIt, RMSE(data, latent))
+
 SGD(data)
-
-
 # In[ ]:
 
 
