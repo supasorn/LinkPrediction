@@ -28,12 +28,15 @@ def RMSEWorker(x):
             break
     return err
 
-def RMSE(slices, nnz, p):
+def RMSE2(slices, nnz, p):
     err = 0
     for i in range(len(slices)):
         err += sum(p.map(RMSEWorker, slices[i]))
     return math.sqrt(err / nnz)
         
+
+def RMSE(data, latent):
+    return RMSE2(slice(data, mp.cpu_count()), data.nnz, Pool(mp.cpu_count()))
 
 def update(x):
     global userOffset, movieOffset, mp_arr, latentShape, eta, lambduh
@@ -74,6 +77,7 @@ def slice(data, cores):
     return slices
 
 
+
 def SGD(data, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
     global latentShape, userOffset, movieOffset, mp_arr, eta, lambduh
     eta = eta_
@@ -84,14 +88,15 @@ def SGD(data, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
     latentShape = (sum(data.shape), rank)
     mp_arr = mp.Array(ctypes.c_double, latentShape[0] * latentShape[1])
     latent = np.frombuffer(mp_arr.get_obj()).reshape(latentShape)
-    latent[:] = np.random.rand(sum(data.shape), rank)
+    avgRating = data.sum() / data.nnz
+    latent[:] = np.random.rand(sum(data.shape), rank) * math.sqrt(avgRating / rank / 0.25)
 
     cores = mp.cpu_count()
     slices = slice(data, cores)
 
     p = Pool(cores)
     it = 0
-    print "Initial RMSE %f" % (RMSE(slices, data.nnz, p))
+    print "Initial RMSE %f" % (RMSE2(slices, data.nnz, p))
     while it < maxit:
         start = time.time()
 
@@ -99,7 +104,7 @@ def SGD(data, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
             p.map(update, slices[i])
         it += 1
 
-        print "%d : time %f : RMSE %s " % (it, time.time() - start, "[NE]" if it % 5 else str(RMSE(slices, data.nnz, p)))
+        print "%d : time %f : RMSE %s " % (it, time.time() - start, "[NE]" if it % 5 else str(RMSE2(slices, data.nnz, p)))
 
 
 random.seed(1)
@@ -110,3 +115,5 @@ if len(sys.argv) == 2:
 print "Dataset : %s" % dataset
 data = io.mmread("data/" + dataset)
 SGD(data, maxit=20, eta_=0.01)
+
+
