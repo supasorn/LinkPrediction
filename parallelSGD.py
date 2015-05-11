@@ -59,7 +59,7 @@ def update(x):
 
 # In[ ]:
 
-def SGD(data, eta = 0.01, lambduh = 0.1, maxit = 2):
+def SGD(data, eta = 0.01, lambduh = 0.1, maxit = 10):
     global latentShape, userOffset, movieOffset, mp_arr
     rank = 10
     userOffset = 0
