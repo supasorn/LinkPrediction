@@ -106,14 +106,25 @@ def SGD(data, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
 
         print "%d : time %f : RMSE %s " % (it, time.time() - start, "[NE]" if it % 5 else str(RMSE2(slices, data.nnz, p)))
 
+    return latent
+
 
 random.seed(1)
-dataset = "netflix_mm_10000_1000"
-if len(sys.argv) == 2:
-    dataset = sys.argv[1]
+fileTraining = "netflix_mm_10000_1000"
+fileTesting = "netflix_mm_10000_1000"
+if len(sys.argv) >= 2:
+    fileTraining = sys.argv[1]
+if len(sys.argv) >= 3:
+    fileTesting = sys.argv[2]
 
-print "Dataset : %s" % dataset
-data = io.mmread("data/" + dataset)
-SGD(data, maxit=20, eta_=0.01)
+print "Training Dataset : %s" % fileTraining
+print "Testing Dataset : %s" % fileTesting
+
+dataTraining = io.mmread("data/" + fileTraining)
+dataTesting = io.mmread("data/" + fileTesting)
+latent = SGD(dataTraining, maxit=20, eta_=0.01)
+print "RMSE Train %f" % (RMSE(dataTraining, latent))
+print "RMSE Test  %f" % (RMSE(dataTesting, latent))
+
 
 
