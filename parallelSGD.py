@@ -10,8 +10,9 @@ from multiprocessing import Pool
 from scipy.sparse import coo_matrix
 import multiprocessing as mp
 import ctypes
+import random
 
-def RMSEchild(x):
+def RMSEWorker(x):
     global userOffset, movieOffset, mp_arr, latentShape
     r0, c0, data = x
     latent = np.frombuffer(mp_arr.get_obj()).reshape(latentShape)
@@ -30,7 +31,7 @@ def RMSEchild(x):
 def RMSE(slices, nnz, p):
     err = 0
     for i in range(len(slices)):
-        err += sum(p.map(RMSEchild, slices[i]))
+        err += sum(p.map(RMSEWorker, slices[i]))
     return math.sqrt(err / nnz)
         
 
@@ -73,10 +74,10 @@ def slice(data, cores):
     return slices
 
 
-def SGD(data, reg_eta = 0.01, reg_lambduh = 0.1, rank = 10, maxit = 10):
+def SGD(data, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
     global latentShape, userOffset, movieOffset, mp_arr, eta, lambduh
-    eta = reg_eta
-    lambduh = reg_lambduh
+    eta = eta_
+    lambduh = lambduh_
     userOffset = 0
     movieOffset = data.shape[0]
     
@@ -92,22 +93,20 @@ def SGD(data, reg_eta = 0.01, reg_lambduh = 0.1, rank = 10, maxit = 10):
     it = 0
     print "Initial RMSE %f" % (RMSE(slices, data.nnz, p))
     while it < maxit:
-        oldLatent = latent.copy()
         start = time.time()
 
         for i in range(len(slices)):
             p.map(update, slices[i])
         it += 1
 
-        print "%d : time %f : RMSE %f " % (it, time.time() - start, RMSE(slices, data.nnz, p))
+        print "%d : time %f : RMSE %s " % (it, time.time() - start, "[NE]" if it % 5 else str(RMSE(slices, data.nnz, p)))
 
 
-
-
+random.seed(1)
 dataset = "netflix_mm_10000_1000"
 if len(sys.argv) == 2:
     dataset = sys.argv[1]
 
 print "Dataset : %s" % dataset
 data = io.mmread("data/" + dataset)
-SGD(data, maxit=20)
+SGD(data, maxit=20, eta_=0.01)
