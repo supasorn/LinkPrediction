@@ -6,7 +6,7 @@ if len(sys.argv) == 2:
     num = 0
     
     for l in f:
-        fo = open("sh/%04d.txt" % (num), "w")
+        fo = open("sh/%04d.sh" % (num), "w")
         fo.write("#!/usr/bin/env sh\n")
         fo.write(l)
         fo.close()
