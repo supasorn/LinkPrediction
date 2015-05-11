@@ -80,14 +80,18 @@ def slice(data, cores):
 
 def SGD(data, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
     global latentShape, userOffset, movieOffset, mp_arr, eta, lambduh
+    t1 = time.time()
     eta = eta_
     lambduh = lambduh_
     userOffset = 0
     movieOffset = data.shape[0]
-    
+   
+    # Allocate shared memory across processors for latent variable 
     latentShape = (sum(data.shape), rank)
     mp_arr = mp.Array(ctypes.c_double, latentShape[0] * latentShape[1])
     latent = np.frombuffer(mp_arr.get_obj()).reshape(latentShape)
+
+    # Initialize latent variable so that expectation equals average rating
     avgRating = data.sum() / data.nnz
     latent[:] = np.random.rand(sum(data.shape), rank) * math.sqrt(avgRating / rank / 0.25)
 
@@ -106,6 +110,7 @@ def SGD(data, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
 
         print "%d : time %f : RMSE %s " % (it, time.time() - start, "[NE]" if it % 5 else str(RMSE2(slices, data.nnz, p)))
 
+    print "Total training time %f" % (time.time() - t1)
     return latent
 
 
