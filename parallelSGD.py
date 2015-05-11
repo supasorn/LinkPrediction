@@ -14,14 +14,14 @@ import random
 import gflags
 
 FLAGS = gflags.FLAGS
-gflags.DEFINE_string('train', 'netflix_mm_10000_1000', 'Training file')
-gflags.DEFINE_string('test', 'netflix_mm_10000_1000', 'Testing file')
+gflags.DEFINE_string('train', 'netflix_mm_10000_1000', 'Training File')
+gflags.DEFINE_string('test', 'netflix_mm_10000_1000', 'Testing File')
 gflags.DEFINE_integer('rank', 10, 'Matrix Rank')
 gflags.DEFINE_float('lamb', 0.1, 'Lambda')
-gflags.DEFINE_float('eta', 0.01, 'Learning rate')
-gflags.DEFINE_integer('maxit', 10, 'Maximum iterations')
-gflags.DEFINE_integer('rmseint', 5, 'RMSE computation interval')
-gflags.DEFINE_integer('cores', -1, 'RMSE computation interval')
+gflags.DEFINE_float('eta', 0.01, 'Learning Rate')
+gflags.DEFINE_integer('maxit', 10, 'Maximum Number of Iterations')
+gflags.DEFINE_integer('rmseint', 5, 'RMSE Computation Interval')
+gflags.DEFINE_integer('cores', -1, 'CPU cores')
 
 
 def RMSEWorker(x):
@@ -48,7 +48,7 @@ def RMSE2(slices, nnz, p):
         
 
 def RMSE(data, latent):
-    return RMSE2(slice(data, mp.cpu_count()), data.nnz, Pool(mp.cpu_count()))
+    return RMSE2(slice(data, FLAGS.cores), data.nnz, Pool(FLAGS.cores))
 
 def update(x):
     global userOffset, movieOffset, mp_arr, latentShape, eta, lambduh
@@ -88,7 +88,8 @@ def slice(data, cores):
             slices[i][j] = (splitRow[j], splitCol[colj], rowSlices[j][:,splitCol[colj]:splitCol[colj+1]])
     return slices
 
-
+def printLog(it, time, ttime, rmse):
+    print "@ %d : [%.3fs, %.3fs] : %s" % (it, time, ttime, rmse)
 
 def SGD(data, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
     global latentShape, userOffset, movieOffset, mp_arr, eta, lambduh
@@ -107,12 +108,11 @@ def SGD(data, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
     avgRating = data.sum() / data.nnz
     latent[:] = np.random.rand(sum(data.shape), rank) * math.sqrt(avgRating / rank / 0.25)
 
-    cores = FLAGS.cores if FLAGS.cores > 0 else mp.cpu_count()
-    slices = slice(data, cores)
+    slices = slice(data, FLAGS.cores)
 
-    p = Pool(cores)
+    p = Pool(FLAGS.cores)
     it = 0
-    print "Initial RMSE %f" % (RMSE2(slices, data.nnz, p))
+    printLog(0, 0, time.time() - t1, RMSE2(slices, data.nnz, p))
     while it < maxit:
         start = time.time()
 
@@ -120,9 +120,7 @@ def SGD(data, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
             p.map(update, slices[i])
         it += 1
 
-        print "%d : time %f : RMSE %s " % (it, time.time() - start, "[NE]" if it % FLAGS.rmseint else str(RMSE2(slices, data.nnz, p)))
-
-    print "Total training time %f" % (time.time() - t1)
+        printLog(it, time.time() - start, time.time() - t1, "[NE]" if it % FLAGS.rmseint else str(RMSE2(slices, data.nnz, p)))
     return latent
 
 
@@ -133,18 +131,22 @@ def main(argv):
       print '%s\\nUsage: %s ARGS\\n%s' % (e, sys.argv[0], FLAGS)
       sys.exit(1)
 
+    if FLAGS.cores == -1:
+        FLAGS.cores = mp.cpu_count()
+
+    for flag_name in sorted(FLAGS.RegisteredFlags()):
+        if flag_name not in ["?", "help", "helpshort", "helpxml"]:
+            fl = FLAGS.FlagDict()[flag_name]
+            print "# " + fl.help + " (" + flag_name + "): " + str(fl.value)
     random.seed(1)
     np.random.seed(1)
-
-    print "Training Dataset : %s" % FLAGS.train
-    print "Testing Dataset : %s" % FLAGS.test
 
     dataTraining = io.mmread("data/" + FLAGS.train)
     dataTesting = io.mmread("data/" + FLAGS.test)
 
     latent = SGD(dataTraining, FLAGS.eta, FLAGS.lamb, FLAGS.rank, FLAGS.maxit)
-    print "RMSE Train %f" % (RMSE(dataTraining, latent))
-    print "RMSE Test  %f" % (RMSE(dataTesting, latent))
+    print "* RMSE Train : %f" % (RMSE(dataTraining, latent))
+    print "* RMSE Test  : %f" % (RMSE(dataTesting, latent))
 
 if __name__ == '__main__':
     main(sys.argv)
