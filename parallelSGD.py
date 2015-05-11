@@ -21,6 +21,7 @@ gflags.DEFINE_float('lamb', 0.1, 'Lambda')
 gflags.DEFINE_float('eta', 0.01, 'Learning rate')
 gflags.DEFINE_integer('maxit', 10, 'Maximum iterations')
 gflags.DEFINE_integer('rmseint', 5, 'RMSE computation interval')
+gflags.DEFINE_integer('cores', -1, 'RMSE computation interval')
 
 
 def RMSEWorker(x):
@@ -106,7 +107,7 @@ def SGD(data, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
     avgRating = data.sum() / data.nnz
     latent[:] = np.random.rand(sum(data.shape), rank) * math.sqrt(avgRating / rank / 0.25)
 
-    cores = mp.cpu_count()
+    cores = FLAGS.cores if FLAGS.cores > 0 else mp.cpu_count()
     slices = slice(data, cores)
 
     p = Pool(cores)
