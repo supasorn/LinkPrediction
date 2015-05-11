@@ -13,4 +13,5 @@ if len(sys.argv) == 2:
         num += 1
 
     for i in range(num):
+        print "qsub -q notcuda.q sh/%04d.sh" % i
         os.system("qsub -q notcuda.q sh/%04d.sh" % i)
