@@ -1,0 +1,166 @@
+\documentclass{article} % For LaTeX2e
+\usepackage{nips15submit_e,times}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{amsmath}
+\usepackage{color}
+\usepackage{cite}
+\usepackage{epsfig, graphics}
+%\documentstyle[nips14submit_09,times,art10]{article} % For LaTeX 2.09
+
+
+\title{Predicting Movies Rating with Parallel Stochastic Gradient Descent}
+
+\author{
+Supasorn Suwajanakorn, Kanit Wongsuphasawat \\
+% \thanks{ Use footnote for providing further information
+% about author (webpage, alternative address)---\emph{not} for acknowledging
+% funding agencies.} \\
+Computer Science \& Engineering\\
+University of Washington\\
+\texttt{\{supasorn,kanitw\}@cs.washington.edu} \\
+}
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to \LaTeX{} to determine where to break
+% the lines. Using \AND forces a linebreak at that point. So, if \LaTeX{}
+% puts 3 of 4 authors names on the first line, and the last on the second
+% line, try using \AND instead of \And before the third author name.
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+\newcommand{\todo}[1]{\textcolor{red}{TODO: #1}}
+\newcommand{\red}[1]{\textcolor{red}{#1}}
+\newcommand{\U}{U}
+\newcommand{\M}{M}
+
+\nipsfinalcopy % Uncomment for camera-ready version
+
+\begin{document}
+
+\maketitle
+
+% \begin{abstract}
+% Write abstract here
+% \end{abstract}
+
+\section{Problem \& Dataset}
+
+In this project, we try to predict movies rating based on datasets from
+movielens.org.  Currently, we model the recommendation algorithm using matrix
+factorization~\cite{koren:matrix} and try to improve the performance by parallelizing stochastic gradient descent, while minimizing infererence acrossing processors.
+
+We use the MovieLens 20M\footnote{http://grouplens.org/datasets/movielens/}
+as our benchmark dataset.  The dataset contains over 20 million ratings and 465 thousand tag applications applied to 27,278 movies by 138,493 users.
+All the users included had rated at least 20 movies.  The input rating matrix is sparse since only 0.5\% of the matrix's cells contain values.
+
+\section{Matrix Factorization with Stochastic Gradient Descent}
+
+We first map the relationship between movies, users and ratings
+as a matrix factorization problem.
+Each rating is modeled as an inner product between a vector of user and movie in the latent space of rank $k$.  Thus, the estimate of movie $m$'s rating by user $u$ is
+
+\[
+  \hat{r}_{um} = \U_u \M_m^T
+\]
+
+where $\U_u$ is a rank-$k$ vector that represents row $u$-th of the latent matrix for users $\U$ and $\M_m$ is a rank-$k$ vector that represents row $m$-th of the latent matrix for movies $\M$.
+
+To learn the factor matrices $\U$ and $\M$, we minimize regularized squared error on the set of known ratings.
+
+\begin{align}
+  \min_{\U,\M} \sum_{r_{um}} (\U_u \cdot \M_m^T - r_{um})^2
+  + \lambda_u \|\U\|^2_F + \lambda_m \|\M\|^2_F
+\end{align}
+
+To find solution, we apply stochastic gradient descent using the following update equation
+
+\begin{align}
+\left[\begin{array}{c}
+\U_u^{(t+1)}
+\\
+\M_m^{(t+1)}
+\end{array}\right]
+& \leftarrow
+\left[\begin{array}{c}
+(1-\eta_t \lambda_u) \U_u^{(t)} - \eta_t \epsilon_t \M_m^{(t)}
+\\
+(1-\eta_t \lambda_v) \M_m^{(t)} - \eta_t \epsilon_t \U_u^{(t)}
+\end{array}\right]
+\label{eq:update}
+\end{align}
+
+where $\eta_t$ is the step size at time $t$.
+
+\section{Parallel Stochastic Gradient Descent without Interference}
+
+To speed-up matrix factorization, we develop a technique for parallelizing matrix factorization without inference.
+In this paper, we refer to each parallel unit as processor, but the same concept is also applicable for distributed system environment.
+
+From (\ref{eq:update}), while the algorithm observe rating $r_{um}$,
+it only updates row $\U_u$ and $M_m$.
+To minimize interference, we can divide the dataset into subsets such that each movie and each user are updated by one processor at the same time.
+
+One method is to split the input matrix $R$, both vertically and horizontally
+into $p$x$p$ submatrices where $p$ is number of processors
+(Figure~\ref{fig:split}). We then divide each pass over the entire training
+set into $p$ (sub-)iterations. For the first iteration, we distribute $p$ sub
+matrices along the diagonal to each processor.  Therefore,   For the next
+iterations, for each processor, we assign the submatrix on the right of the
+previously assigned submatrix to the process.  If the previous assignment is
+the rightmost submatrix, we then assign the leftmost submatrix instead. By
+using this assignment method, every movie $m$ and every user $u$ that are
+updated by processor p in each iteration will not be updated by other
+processor in the same iteration.
+
+\begin{figure}[h]
+%\framebox[4.0in]{$\;$}
+\centering
+\includegraphics[width=4in]{figures/split.pdf}
+\caption{\label{fig:split} Paralellizing the matrix with 5 processors.}
+\end{figure}
+
+\section{Implementation}
+
+We implement matrix factorization in python using numpy and scipy.
+For the parallel version, we use python's \texttt{multiprocessing} library to implement multi-threaded stochastic gradient descent.
+
+We initialize the latent matrices $U$ and $M$ by drawing a sample from a uniform distribution in the range $[0,\sqrt{\frac{\bar{r}}{0.25k}})$ where $\bar{r}$ is the average rating so that $E[\hat{r}_{um}] = \bar{r}$ after initialization.
+
+\section{Results}
+
+TODO: varies matrix rank k
+
+TODO: How much speed up we've got with parallel
+
+
+
+\section{Final Delivery Plan}
+
+So far we only model the recommendation based on matrix factorization.
+We plan to address the cold-start problem by combining content-based recommendation techniques by using tags and genres as features of the movies.
+As the number of tags are huge, we plan to reduce the space of tags using random projection and hash-kernel techniques.
+
+
+(If time allows: other parallezing scheme, temporal dynamics.)
+
+% \begin{table}[t]
+% \caption{Sample table title}
+% \label{sample-table}
+% \begin{center}
+% \begin{tabular}{ll}
+% \multicolumn{1}{c}{\bf PART}  &\multicolumn{1}{c}{\bf DESCRIPTION}
+% \\ \hline \\
+% Dendrite         &Input terminal \\
+% Axon             &Output terminal \\
+% Soma             &Cell body (contains cell nucleus) \\
+% \end{tabular}
+% \end{center}
+% \end{table}
+
+\bibliographystyle{abbrv}
+\bibliography{paper_supasorn_kanitw}{}
+
+\end{document}
