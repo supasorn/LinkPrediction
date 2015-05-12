@@ -30,3 +30,8 @@
 *.vrb
 *.xdy
 *.tdo
+*.fls
+data/*
+*.mtx
+*.pdf
+.ipynb_checkpoints
