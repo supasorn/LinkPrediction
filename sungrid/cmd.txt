@@ -1,0 +1,3 @@
+cd /projects/grail/supasorn/LinkPrediction/; echo a > a.txt
+cd /projects/grail/supasorn/LinkPrediction/; echo b > b.txt
+cd /projects/grail/supasorn/LinkPrediction/; echo c > c.txt
