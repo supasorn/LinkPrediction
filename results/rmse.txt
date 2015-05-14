@@ -1,0 +1,63 @@
+0
+* RMSE Train : 0.604255
+* RMSE Test  : 1.074918
+1
+* RMSE Train : 0.610064
+* RMSE Test  : 0.989220
+2
+* RMSE Train : 0.615182
+* RMSE Test  : 0.953115
+3
+* RMSE Train : 0.621191
+* RMSE Test  : 0.928455
+4
+* RMSE Train : 0.628228
+* RMSE Test  : 0.910106
+5
+* RMSE Train : 0.636071
+* RMSE Test  : 0.896169
+6
+* RMSE Train : 0.645129
+* RMSE Test  : 0.885433
+7
+* RMSE Train : 0.654826
+* RMSE Test  : 0.877442
+8
+* RMSE Train : 0.665248
+* RMSE Test  : 0.871651
+9
+* RMSE Train : 0.676327
+* RMSE Test  : 0.867681
+10
+* RMSE Train : 0.688678
+* RMSE Test  : 0.865728
+11
+* RMSE Train : 0.700217
+* RMSE Test  : 0.864080
+12
+* RMSE Train : 0.712928
+* RMSE Test  : 0.864035
+13
+* RMSE Train : 0.726742
+* RMSE Test  : 0.865411
+14
+* RMSE Train : 0.740284
+* RMSE Test  : 0.867127
+15
+* RMSE Train : 0.753542
+* RMSE Test  : 0.868916
+16
+* RMSE Train : 0.767320
+* RMSE Test  : 0.871774
+17
+* RMSE Train : 0.780989
+* RMSE Test  : 0.875172
+18
+* RMSE Train : 0.794237
+* RMSE Test  : 0.879060
+19
+* RMSE Train : 0.807206
+* RMSE Test  : 0.884179
+20
+* RMSE Train : 0.816160
+* RMSE Test  : 0.887081
