@@ -77,7 +77,7 @@ Each rating is modeled as a sum of the inner product between a vector of user an
 
 where $\U_u$ is a rank-$k$ vector that represents row $u$-th of the latent matrix for users $\U$ and $\M_m$ is a rank-$k$ vector that represents row $m$-th of the latent matrix for movies $\M$. $x_u$ and $x_m$ are features associated with user $u$ and movie $m$, and $V$ contains the bilinear weights, which can be constrained to have low-rank by decomposing $V=D + A^TB$ where D is diagonal and $A,B$ are low-rank matrices.
 
-As an initial implementation, we compute the standard matrix factorization without explicit feature on a (20\%) subset of MovieLens dataset. That is, we minimize regularized squared error on the set of known ratings (discussed in lecture).
+As an initial implementation, we compute the standard matrix factorization without explicit feature on a (20\%) subset of MovieLens dataset. That is, we minimize regularized squared errors on the set of known ratings (discussed in lecture).
 
 \begin{align}
   \min_{\U,\M} \sum_{r_{um}} (\U_u \cdot \M_m^T - r_{um})^2
