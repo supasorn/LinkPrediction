@@ -9,7 +9,7 @@
 %\documentstyle[nips14submit_09,times,art10]{article} % For LaTeX 2.09
 
 
-\title{Predicting Movies Rating with Parallel Stochastic Gradient Descent without Locks}
+\title{Predicting Movies Rating with Cold-Start}
 
 \author{
 Supasorn Suwajanakorn, Kanit Wongsuphasawat \\
@@ -50,20 +50,16 @@ University of Washington\\
 
 Our goal is to predict movie ratings for each user based on previous ratings and movie metadata which includes official genres and user-provided short tags.  Specifically, we plan to implement a learning model based on matrix factorization~\cite{koren:matrix} that addresses the following problems:
 
-\textbf{1) Run-time Performance.}  We aim to explore parallelization techniques that enable fast learning algorithm.  In our initial work, we have developed a simple interference-free parallelization scheme for stochastic gradient descent (SGD) which simultaneously utilizes all available computing resources (cores or nodes) and avoids work overriding.
+\textbf{1) Cold-Start Problem.}  A common problem for matrix factorization-based method for collaborative filtering is the inability to address unseen items (movies in our case) or users.  We aim to address this problem by using a hybrid model combining matrix factorization and content-based filtering techniques using metadata as features.  To address high dimensionality, we plan to compress the dimensionality of tags using hash-kernel techniques~\cite{shi:hashkernels} or constrain bilinear weights matrix $V$ in Equation $\ref{eq:estimate}$ to be low-rank.
+
+\textbf{2) Run-time Performance.}  We aim to explore parallelization techniques and frameworks that enable fast learning algorithm.  In our initial work, we experiment with a simple interference-free parallelization scheme for stochastic gradient descent (SGD) which avoids work overriding and can simultaneously utilize all available cores. We plan to implement and compare SGD on a distributed framework such as GraphLab.
 
 % We plan to compare our method with Hogwild method by Niu et al.~\cite{niu:hogwild} that uses a shared-memory model without locks to eliminate the locking overhead.
-
-\textbf{2) Cold-Start Problem.}  A common problem for matrix factorization is inability to address the system’s  newer items (movies in our case) or users.  We aim to address this problem by using a hybrid model combining matrix factorization and content-based filtering techniques using metadata as features.  To address high dimensionality, we plan to compress the dimensionality of tags using hash-kernel techniques~\cite{shi:hashkernels}.
 
 \textbf{3) Class Imbalance.}  It has been shown that in the general context of link prediction and many learning problems, the bias or imbalance of the output class in the training set adversely affects the accuracy of the final predictor. In this work, we will investigate how sensitive rating imbalance affects the outcome of the movie rating prediction. If the accuracy indeed suffers from such imbalance, we plan to follow \cite{menon:link-prediction} and use a relative loss measure to handle imbalance and directly optimizes AUC curve with a modified loss function. The resulting objective can still be optimized with SGD.
 
 We use the MovieLens 20M\footnote{http://grouplens.org/datasets/movielens/}
-as our benchmark dataset.  The dataset contains over 20 million ratings and 465 thousand tag applications applied to 27,278 movies by 138,493 users.
-All the users included had rated at least 20 movies.  The input rating matrix is sparse since only 0.5\% of the matrix's cells contain values.
-
-In our current progress,  we model the recommendation algorithm using pure matrix
-factorization and address the performance problem with an algorithm that parallel stochastic gradient descent without work overriding.
+as our benchmark dataset.  The dataset contains over 20 million ratings and 465 thousand tags assigned to 27,278 movies by 138,493 users and excludes users who rated fewer than 20 movies. The input rating matrix is sparse since only 0.5\% of the matrix's cells contain values.
 
 
 
@@ -71,23 +67,23 @@ factorization and address the performance problem with an algorithm that paralle
 \section{Matrix Factorization with Stochastic Gradient Descent}
 
 We first map the relationship between movies, users and ratings
-as a matrix factorization problem.
-Each rating is modeled as an inner product between a vector of user and movie in the latent space of rank $k$.  Thus, the estimate of movie $m$'s rating by user $u$ is
+as a matrix factorization problem with an explicit feature model.
+Each rating is modeled as a sum of the inner product between a vector of user and movie in the latent space of rank $k$, biases associated with each user and movie ($b_u, b_m$), and a bilinear regression model \cite{gabriel1998generalised}. The estimate of movie $m$'s rating by user $u$ is given by.
 
 \[
-  \hat{r}_{um} = \U_u \M_m^T
+  \hat{r}_{um} = \U_u \M_m^T + b_u + b_m + x_u^T V x_m
+  \label{eq:estimate}
 \]
 
-where $\U_u$ is a rank-$k$ vector that represents row $u$-th of the latent matrix for users $\U$ and $\M_m$ is a rank-$k$ vector that represents row $m$-th of the latent matrix for movies $\M$.
+where $\U_u$ is a rank-$k$ vector that represents row $u$-th of the latent matrix for users $\U$ and $\M_m$ is a rank-$k$ vector that represents row $m$-th of the latent matrix for movies $\M$. $x_u$ and $x_m$ are features associated with user $u$ and movie $m$, and $V$ contains the bilinear weights, which can be constrained to have low-rank by decomposing $V=D + A^TB$ where D is diagonal and $A,B$ are low-rank matrices.
 
-To learn the factor matrices $\U$ and $\M$, we minimize regularized squared error on the set of known ratings.
+As an initial implementation, we compute the standard matrix factorization without explicit feature on a (20\%) subset of MovieLens dataset. That is, we minimize regularized squared error on the set of known ratings (discussed in lecture).
 
 \begin{align}
   \min_{\U,\M} \sum_{r_{um}} (\U_u \cdot \M_m^T - r_{um})^2
   + \lambda_u \|\U\|^2_F + \lambda_m \|\M\|^2_F
 \end{align}
-
-To find solution, we apply stochastic gradient descent using the following update equation
+To find a solution, we apply stochastic gradient descent using the following update equation:
 
 \begin{align}
 \left[\begin{array}{c}
@@ -104,33 +100,31 @@ To find solution, we apply stochastic gradient descent using the following updat
 \label{eq:update}
 \end{align}
 
-where $\eta_t$ is the step size at time $t$.
+where $\eta_t$ is the step size at time $t$ which are all currently set to 0.01.
 
 \section{Parallel Stochastic Gradient Descent without Interference}
 
-To speed-up matrix factorization, we develop a technique for parallelizing matrix factorization without inference.
-In this paper, we refer to each parallel unit as processor, but the same concept is also applicable for distributed system environment.
+To speed-up matrix factorization, we develop a parallizing scheme for matrix factorization without inference.
+In this paper, we refer to each parallel unit as processor, but the same concept is also applicable for any distributed system environment.
 
-From (\ref{eq:update}), while the algorithm observe rating $r_{um}$,
-it only updates row $\U_u$ and $M_m$.
-To minimize interference, we can divide the dataset into subsets such that each movie and each user are updated by one processor at the same time.
+From (\ref{eq:update}), from an observation that the algorithm only updates row $\U_u$ and $M_m$ when rating $r_{um}$ is observed, we can divide the dataset into subsets such that the movies and users in each subset are disjoint and can be independently processed at the same time.
 
 One method is to split the input matrix $R$, both vertically and horizontally
-into $p$x$p$ submatrices where $p$ is number of processors
+into $p \times p$ submatrices where $p$ is number of processors
 (Figure~\ref{fig:split}). We then divide each pass over the entire training
 set into $p$ (sub-)iterations. For the first iteration, we distribute $p$ sub
-matrices along the diagonal to each processor.  Therefore,   For the next
-iterations, for each processor, we assign the submatrix on the right of the
-previously assigned submatrix to the process.  If the previous assignment is
-the rightmost submatrix, we then assign the leftmost submatrix instead. By
+matrices along the diagonal to each processor.  And for subsequent iterations, each processor is assigned the submatrix on the right of the
+previously assigned submatrix and warp around if we reach the end. By
 using this assignment method, every movie $m$ and every user $u$ that are
 updated by processor p in each iteration will not be updated by other
-processor in the same iteration.
+processors in the same subiteration.
+
+Advantages of this scheme include a trivial scheduling scheme that does not require complex synchronizations and can fully operate on a single shared memory, and an known deteministic memory locality. However, one important consideration for this scheme is the load balancing. The sparse observations in matrix $R$ need not be uniformly distributed leading to imbalance computational burdens. Remedies for this include subdividing the observation matrix into smaller chucks i.e. $q \times q$ such that $q$ is greater than the number of processors and have a single processor operate on more than one submatrix per subiteration. Another way is to randomly shuffle the rows and columns of the observation matrix.
 
 \begin{figure}[h]
 %\framebox[4.0in]{$\;$}
 \centering
-\includegraphics[width=4in]{figures/split.pdf}
+\includegraphics[width=3in]{figures/split.pdf}
 \caption{\label{fig:split} Paralellizing the matrix with 5 processors.}
 \end{figure}
 
@@ -150,7 +144,7 @@ imbalancing and we would hope to see a better speed-up when we run on the
 original big dataset.
 
 \textbf{Varying lambda.}  For our preliminary results, we try the simple
-matrix factorization problem (no content-based attributes) with different
+matrix factorization problem (no explicit feature) with different
 values of $\lambda$ in $\{0, 0.01, \ldots, 0.2\}$. We run this simultaneously
 on a GRAIL cluster which consists of nodes with varying cores from 8 to 32. We
 limit the maximum number of iterations to 300 and the time it took varies from
@@ -163,7 +157,7 @@ final work.
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=4in]{../plot.png}
+\includegraphics[width=3in]{../plot.png}
 \caption{\label{fig:rmselambda} A plot of
 training (red triangle) and testing (blue square) RMSE's with respect to $\lambda$ }
 \end{figure}
