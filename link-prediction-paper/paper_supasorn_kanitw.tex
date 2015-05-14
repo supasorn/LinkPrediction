@@ -140,8 +140,6 @@ We implement a matrix factorization in python using numpy and scipy and use pyth
 
 Since this is a non-convex optimization, we initialize the latent matrices $U$ and $M$ by drawing a sample from a uniform distribution in the range $[0,\sqrt{\frac{\bar{r}}{0.25k}})$ for each entry in the matrices where $\bar{r}$ is the average rating and $k$ is the matrix rank so that $E[\hat{r}_{um}] = \bar{r}$ after initialization.
 
-TODO(supasorn): how do we run this.
-
 \section{Initial Results}
 
 \textbf{Parallel Speed-up.}  Compared to a single-process algorithm, our
