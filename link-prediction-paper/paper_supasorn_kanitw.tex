@@ -129,15 +129,25 @@ For the parallel version, we use python's \texttt{multiprocessing} library to im
 
 We initialize the latent matrices $U$ and $M$ by drawing a sample from a uniform distribution in the range $[0,\sqrt{\frac{\bar{r}}{0.25k}})$ where $\bar{r}$ is the average rating so that $E[\hat{r}_{um}] = \bar{r}$ after initialization.
 
+TODO(supasorn): how do we do this.
+
 \section{Results}
 
-TODO: varies matrix rank k
+\textbf{Parallel Speed-up.}
+TODO(supasorn): How much speed up we've got with parallel (with subset of data-set).
 
-TODO: How much speed up we've got with parallel
+\textbf{Varying lambda.}
+
+20
+
+TODO:
 
 
 
 \section{Final Delivery Plan}
+
+We plan to further find optimal parameters for rank of latent vectors $k$
+(in addition to regularizaiton parameter) using grid search.
 
 So far we only model the recommendation based on matrix factorization.
 We plan to address the cold-start problem by combining content-based recommendation techniques by using tags and genres as features of the movies.
