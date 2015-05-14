@@ -114,12 +114,9 @@ into $p \times p$ submatrices where $p$ is number of processors
 (Figure~\ref{fig:split}). We then divide each pass over the entire training
 set into $p$ (sub-)iterations. For the first iteration, we distribute $p$ sub
 matrices along the diagonal to each processor.  And for subsequent iterations, each processor is assigned the submatrix on the right of the
-previously assigned submatrix and warp around if we reach the end. By
-using this assignment method, every movie $m$ and every user $u$ that are
-updated by processor p in each iteration will not be updated by other
-processors in the same subiteration.
+previously assigned submatrix and warp around to the left-most submatrix if we reach the end. With this assignment, every movie $m$ and every user $u$ updated by processor p in each iteration will not be updated by other processors in the same subiteration.
 
-Advantages of this scheme include a trivial scheduling scheme that does not require complex synchronizations and can fully operate on a single shared memory, and an known deteministic memory locality. However, one important consideration for this scheme is the load balancing. The sparse observations in matrix $R$ need not be uniformly distributed leading to imbalance computational burdens. Remedies for this include subdividing the observation matrix into smaller chucks i.e. $q \times q$ such that $q$ is greater than the number of processors and have a single processor operate on more than one submatrix per subiteration. Another way is to randomly shuffle the rows and columns of the observation matrix.
+Advantages of this scheme include a trivial scheduling scheme that does not require complex synchronizations and can fully operate on a single shared memory, and a known deteministic memory locality which helps speed up computation with a proper memory caching. However, one important consideration for this scheme is the load balancing. The distribution of sparse observations in matrix $R$ can be non-uniform leading to imbalanced computational burdens. Remedies for this include subdividing the observation matrix into smaller chucks i.e. $q \times q$ such that $q$ is greater than the number of processors and have a single processor operate on more than one submatrix per subiteration. Another way is to randomly shuffle the rows and columns of the observation matrix. It would be interesting to see how this compares to general graph-based scheduling algorithms such as those in GraphLab.
 
 \begin{figure}[h]
 %\framebox[4.0in]{$\;$}
