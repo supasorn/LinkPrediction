@@ -9,7 +9,7 @@
 %\documentstyle[nips14submit_09,times,art10]{article} % For LaTeX 2.09
 
 
-\title{Predicting Movies Rating with Parallel Stochastic Gradient Descent}
+\title{Predicting Movies Rating with Parallel Stochastic Gradient Descent without Locks}
 
 \author{
 Supasorn Suwajanakorn, Kanit Wongsuphasawat \\
@@ -48,13 +48,25 @@ University of Washington\\
 
 \section{Problem \& Dataset}
 
-In this project, we try to predict movies rating based on datasets from
-movielens.org.  Currently, we model the recommendation algorithm using matrix
-factorization~\cite{koren:matrix} and try to improve the performance by parallelizing stochastic gradient descent, while minimizing infererence acrossing processors.
+Our goal is to predict movie ratings for each user based on previous ratings and movie metadata which includes official genres and user-provided short tags.  Specifically, we plan to implement a learning model based on matrix factorization~\cite{koren:matrix} that addresses the following problems:
+
+\textbf{1) Run-time Performance.}  We aim to explore parallelization techniques that enable fast learning algorithm.  In our initial work, we have developed a simple interference-free parallelization scheme for stochastic gradient descent (SGD) which simultaneously utilizes all available computing resources (cores or nodes) and avoids work overriding.
+
+% We plan to compare our method with Hogwild method by Niu et al.~\cite{niu:hogwild} that uses a shared-memory model without locks to eliminate the locking overhead.
+
+\textbf{2) Cold-Start Problem.}  A common problem for matrix factorization is inability to address the system’s  newer items (movie in our case) or users.  We aim to address this problem by using a hybrid model combining matrix factorization and content-based filtering techniques using metadata as features.  To address high dimensionality
+
+\textbf{3) Class Imbalance.}  It has been shown that in the general context of link prediction and many learning problems, the bias or imbalance of the output class in the training set adversely affects the accuracy of the final predictor. In this work, we will investigate how sensitive rating imbalance affects the outcome of the movie rating prediction. If the accuracy indeed suffers from such imbalance, we plan to follow \cite{menon:link-prediction} and use a relative loss measure to handle imbalance and directly optimizes AUC curve with a modified loss function. The resulting objective can still be optimized with SGD.
 
 We use the MovieLens 20M\footnote{http://grouplens.org/datasets/movielens/}
 as our benchmark dataset.  The dataset contains over 20 million ratings and 465 thousand tag applications applied to 27,278 movies by 138,493 users.
 All the users included had rated at least 20 movies.  The input rating matrix is sparse since only 0.5\% of the matrix's cells contain values.
+
+In our current progress,  we model the recommendation algorithm using pure matrix
+factorization and address the performance problem with an algorithm that parallel stochastic gradient descent without work overriding.
+
+
+
 
 \section{Matrix Factorization with Stochastic Gradient Descent}
 
@@ -129,32 +141,33 @@ For the parallel version, we use python's \texttt{multiprocessing} library to im
 
 We initialize the latent matrices $U$ and $M$ by drawing a sample from a uniform distribution in the range $[0,\sqrt{\frac{\bar{r}}{0.25k}})$ where $\bar{r}$ is the average rating so that $E[\hat{r}_{um}] = \bar{r}$ after initialization.
 
-TODO(supasorn): how do we do this.
+TODO(supasorn): how do we run this.
 
-\section{Results}
+\section{Initial Results}
 
 \textbf{Parallel Speed-up.}
 TODO(supasorn): How much speed up we've got with parallel (with subset of data-set).
 
 \textbf{Varying lambda.}
 
-20
-
-TODO:
+TODO(ham):
 
 
-
-\section{Final Delivery Plan}
+\section{Next Steps}
 
 We plan to further find optimal parameters for rank of latent vectors $k$
 (in addition to regularizaiton parameter) using grid search.
 
 So far we only model the recommendation based on matrix factorization.
-We plan to address the cold-start problem by combining content-based recommendation techniques by using tags and genres as features of the movies.
-As the number of tags are huge, we plan to reduce the space of tags using random projection and hash-kernel techniques.
+We plan to address the cold-start problem by using hybrid-model recommendation techniques by using tags and genres as features of the movies.
+As the number of tags are huge, we plan to compress the dimensionality of tags using hash-kernel techniques~\cite{shi:hashkernels}.
 
 
-(If time allows: other parallezing scheme, temporal dynamics.)
+
+
+% If time allows: other parallezing scheme, temporal dynamics.)
+
+% http://research.yahoo.com/files/kdd-fp074-koren.pdf
 
 % \begin{table}[t]
 % \caption{Sample table title}
