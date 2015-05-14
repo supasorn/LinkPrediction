@@ -134,7 +134,7 @@ Since this is a non-convex optimization, we initialize the latent matrices $U$ a
 \textbf{Parallel Speed-up.}
 Compared to a single-process algorithm, our parallel version obtains around 20x speed up when run on a 32-core machine. In principle, the speed should scale up linearly with the number of processes used. We suspect that this is due to the multiprocess overhead and we would hope to see a better speed-up when we run on the original big dataset.
 
-\textbf{Varying lambda.} For our preliminary results, we try the simple matrix factorization problem (no content-based attributes) with different values of $\lambda$. A plot of training and testing RMSE's with respect to $\lambda$ is shown in Figure \ref{fig:rmselambda}. We have not performed a cross-validation to evaluate the best set of parameters ($\lambda$, latent rank) -- this will be part of our final work.
+\textbf{Varying lambda.} For our preliminary results, we try the simple matrix factorization problem (no content-based attributes) with different values of $\lambda$ in $\{0, 0.01, \ldots, 0.2\}$. We run this simultaneously on a GRAIL cluster which consists of nodes with varying cores from 8 to 32. We limit the maximum number of iterations to 300 and the time it took varies from 4 to 11 hours depending on the machines and their current loads. A plot of training and testing RMSE's with respect to $\lambda$ is shown in Figure \ref{fig:rmselambda}. We have not performed a cross-validation to evaluate the best set of parameters ($\lambda$, latent rank) -- this will be part of our final work.
 
 
 \section{Final Delivery Plan}
