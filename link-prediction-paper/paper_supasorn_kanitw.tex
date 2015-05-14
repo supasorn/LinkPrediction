@@ -126,13 +126,13 @@ processor in the same iteration.
 
 We implement a matrix factorization in python using numpy and scipy and use python's \texttt{multiprocessing} library to spawn multiple processes with shared read-write memory for the latent variable. The number of processes spawned is set to the number of CPU cores.
 
-Since this is a non-convex optimization, we initialize the latent matrices $U$ and $M$ by drawing a sample from a uniform distribution in the range $[0,\sqrt{\frac{\bar{r}}{0.25k}})$ where $\bar{r}$ is the average rating and $k$ is the matrix rank of latent matrices so that $E[\hat{r}_{um}] = \bar{r}$ after initialization.
+Since this is a non-convex optimization, we initialize the latent matrices $U$ and $M$ by drawing a sample from a uniform distribution in the range $[0,\sqrt{\frac{\bar{r}}{0.25k}})$ for each entry in the matrices where $\bar{r}$ is the average rating and $k$ is the matrix rank so that $E[\hat{r}_{um}] = \bar{r}$ after initialization.
 
 
 \section{Results}
 
 \textbf{Parallel Speed-up.}
-Compared to a single-process algorithm, our parallel version obtains around 20x speed up when run on a 32-core machine. In principle, the speed should scale up linearly with the number of processes used. We suspect that this is due to the multiprocess overhead and we would hope to see a better speed-up when we run on the original big dataset.
+Compared to a single-process algorithm, our parallel version obtains around 20x speed up when run on a 32-core machine. In principle, the speed should scale up linearly with the number of processes used. We suspect that this is due to the multiprocess overhead and load imbalancing and we would hope to see a better speed-up when we run on the original big dataset.
 
 \textbf{Varying lambda.} For our preliminary results, we try the simple matrix factorization problem (no content-based attributes) with different values of $\lambda$ in $\{0, 0.01, \ldots, 0.2\}$. We run this simultaneously on a GRAIL cluster which consists of nodes with varying cores from 8 to 32. We limit the maximum number of iterations to 300 and the time it took varies from 4 to 11 hours depending on the machines and their current loads. A plot of training and testing RMSE's with respect to $\lambda$ is shown in Figure \ref{fig:rmselambda}. We have not performed a cross-validation to evaluate the best set of parameters ($\lambda$, latent rank) -- this will be part of our final work.
 
