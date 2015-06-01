@@ -1,0 +1,80 @@
+\documentclass{article} % For LaTeX2e
+\usepackage{nips15submit_e, times}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{color}
+\usepackage{cite}
+\usepackage{epsfig, graphics}
+
+\title{Predicting Movies Rating with Cold-Start}
+
+\author{
+	Kanit Wongsuphasawat, Supasorn Suwajanakorn \\
+	% \thanks{ Use footnote for providing further information
+	% about author (webpage, alternative address)---\emph{not} for acknowledging
+	% funding agencies.} \\
+	Computer Science \& Engineering\\
+	University of Washington\\
+	\texttt{\{supasorn,kanitw\}@cs.washington.edu} \\
+}
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to \LaTeX{} to determine where to break
+% the lines. Using \AND forces a linebreak at that point. So, if \LaTeX{}
+% puts 3 of 4 authors names on the first line, and the last on the second
+% line, try using \AND instead of \And before the third author name.
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+\newcommand{\todo}[1]{\textcolor{red}{TODO: #1}}
+\newcommand{\red}[1]{\textcolor{red}{#1}}
+\newcommand{\U}{U}
+\newcommand{\M}{M}
+
+\nipsfinalcopy % Uncomment for camera-ready version
+
+\nipsfinalcopy % Uncomment for camera-ready version
+
+\begin{document}
+	
+	\maketitle  
+
+\section{Problem}
+Our goal is to predict movie ratings for each user based on previous ratings and movie metadata which includes official genres and user-provided short tags.  Specifically, we plan to implement a learning model based on matrix factorization~\cite{koren:matrix} that addresses the following problems:
+
+\textbf{1) Cold-Start Problem.} A common problem for matrix factorization-based method for collaborative filtering is the inability to address unseen items (movies in our case) or users.  We aim to address this problem by using a hybrid model combining matrix factorization and content-based filtering techniques using metadata as features. To address high dimensionality, we plan to compress the dimensionality of tags using hash-kernel techniques~\cite{shi:hashkernels} or constrain bilinear weights matrix $V$ in Equation $\ref{eq:estimate}$ to be low-rank.
+
+\textbf{2) Run-time Performance.} We aim to explore parallelization techniques and frameworks that enable fast learning algorithm.  In our initial work, we experiment with a simple interference-free parallelization scheme for stochastic gradient descent (SGD) which avoids work overriding and can simultaneously utilize all available cores. We plan to implement and compare SGD on a distributed framework such as GraphLab.
+
+% We plan to compare our method with Hogwild method by Niu et al.~\cite{niu:hogwild} that uses a shared-memory model without locks to eliminate the locking overhead.
+
+\section{Dataset \& Preprocessing}
+We use the MovieLens 20M\footnote{http://grouplens.org/datasets/movielens/}
+as our benchmark dataset.  The dataset contains over 20 million ratings and 465 thousand tags assigned to 27,278 movies by 138,493 users and excludes users who rated fewer than 20 movies. The input rating matrix is sparse since only 0.5\% of the matrix's cells contain values.
+
+How we split dataset.
+
+\section{Formulation}
+Justification of the model.
+
+We model the movie rating prediction as a unified collaborative filtering problem which combines matrix factorization with a feature-based learning as follows:
+\begin{multline}
+\min_{L, R} \frac{1}{2}\sum_{r_{um}} \left\{(L_u \cdot R_m + (w_u + w_m) \cdot \phi(u, m) + b_u + b_m - r_{um})^2\right\}\\ + \frac{\lambda_u}{2}\|L\|^2_F + \frac{\lambda_m}{2}\|R\|^2_F + \frac{\lambda_{w_u}}{2}\sum_u\|w_u\|^2_2 + \frac{\lambda_{w_m}}{2}\sum_m\|w_m\|^2_2
+\end{multline}
+where $L_u, R_m \in \mathbb{R}^k$ are $k$ dimensional latent features associated with user $u$ and movie $m$. $w_u,w_m \in \mathbb{R}^{dim(\phi)}$ are latent feature weights. $b_u, b_m \in \mathbb{R}$ are individual and movie-specific biases for the rating $r_{um}$. $\phi(u, m)$ is a feature containing movie genres and user-specified tags. In particular, the first $?$ entries are binary indicators of whether or not movie $m$ is classified as genre $g_i$ in the set of all genres $G = \{g_1,\ldots, g_?\}$. The remaining entries are features computed with hash kernel of user-specified tags.
+\section{Implementations}
+\subsection{GraphLab}
+\subsection{NOMAD}
+\section{Experiments}
+\section{Evaluations}
+\section{Conclusion}
+
+
+\bibliographystyle{abbrv}
+\bibliography{paper_supasorn_kanitw}{}
+\end{document}
