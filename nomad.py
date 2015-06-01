@@ -14,11 +14,8 @@ import random
 import gflags
 
 FLAGS = gflags.FLAGS
-#gflags.DEFINE_string('train', 'netflix_mm_10000_1000', 'Training File')
-#gflags.DEFINE_string('test', 'netflix_mm_10000_1000', 'Testing File')
-gflags.DEFINE_string('train', 'ratings_debug_train', 'Training File')
-gflags.DEFINE_string('test', 'ratings_debug_test', 'Testing File')
-gflags.DEFINE_string('movie', 'movies', 'Testing File')
+gflags.DEFINE_string('train', 'netflix_mm_10000_1000', 'Training File')
+gflags.DEFINE_string('test', 'netflix_mm_10000_1000', 'Testing File')
 gflags.DEFINE_integer('rank', 10, 'Matrix Rank')
 gflags.DEFINE_float('lamb', 0.1, 'Lambda')
 gflags.DEFINE_float('eta', 0.01, 'Learning Rate')
@@ -104,6 +101,37 @@ def update(x):
         except (KeyboardInterrupt, SystemExit):
             break
 
+def updateNOMAD(x):
+    global userOffset, movieOffset, mp_arr, latentShape, eta, lambduh, counte, qsize
+    i, r0, data, qs = x
+    latent = np.frombuffer(mp_arr.get_obj()).reshape(latentShape)
+
+    while True:
+        while not qs[i].empty():
+            col = qs[i].get()
+            column = data[:, col[0]:col[1]].tocoo()
+            for user, movie, rating in itertools.izip(column.row, column.col, column.data):
+                vMovie = latent[col[0] + movie + movieOffset]
+                vUser = latent[user + r0 + userOffset] 
+                vUserTmp = vUser.copy()
+                
+                e = vUser.dot(vMovie) - rating
+                c1 = (1 - eta * lambduh)
+                
+                vUser[:] = c1 * vUser - eta * e * vMovie
+                vMovie[:] = c1 * vMovie - eta * e * vUserTmp
+
+            with counter.get_lock():
+                counter.value += 1
+
+            #nex = np.random.randint(0, len(qs))
+            nex = np.argmin(qsize)
+            qs[nex].put(col)
+
+            with qsize.get_lock():
+                qsize[nex] += 1
+                qsize[i] -= 1
+
 def SGD(data, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
     global latentShape, userOffset, movieOffset, mp_arr, eta, lambduh
     t1 = time.time()
@@ -137,42 +165,10 @@ def SGD(data, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
     return latent
 
 
-def updateNOMAD(x):
-    global userOffset, movieOffset, mp_arr, mp_w, latentShape, weightShape, eta, lambduh, counte, qsize
-    i, r0, data, qs = x
-    latent = np.frombuffer(mp_arr.get_obj()).reshape(latentShape)
-    weights = np.frombuffer(mp_w.get_obj()).reshape(weightShape)
-
-    while True:
-        while not qs[i].empty():
-            col = qs[i].get()
-            column = data[:, col[0]:col[1]].tocoo()
-            for user, movie, rating in itertools.izip(column.row, column.col, column.data):
-                vMovie = latent[col[0] + movie + movieOffset]
-                vUser = latent[user + r0 + userOffset] 
-                vUserTmp = vUser.copy()
-                
-                e = vUser.dot(vMovie) - rating
-                c1 = (1 - eta * lambduh)
-                
-                vUser[:] = c1 * vUser - eta * e * vMovie
-                vMovie[:] = c1 * vMovie - eta * e * vUserTmp
-
-            with counter.get_lock():
-                counter.value += 1
-
-            #nex = np.random.randint(0, len(qs))
-            nex = np.argmin(qsize)
-            qs[nex].put(col)
-
-            with qsize.get_lock():
-                qsize[nex] += 1
-                qsize[i] -= 1
-
     
 
-def SGDNOMAD(data, movie, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
-    global latentShape, weightShape, userOffset, movieOffset, mp_arr, mp_w, eta, lambduh, counter, qsize
+def SGDNOMAD(data, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
+    global latentShape, userOffset, movieOffset, mp_arr, eta, lambduh, counter, qsize
     t1 = time.time()
     eta = eta_
     lambduh = lambduh_
@@ -184,17 +180,12 @@ def SGDNOMAD(data, movie, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
     mp_arr = mp.Array(ctypes.c_double, latentShape[0] * latentShape[1])
     latent = np.frombuffer(mp_arr.get_obj()).reshape(latentShape)
 
-    weightShape = (latentShape[0], movie.shape[1])
-    mp_w = mp.Array(ctypes.c_double, weightShape[0] * weightShape[1])
-    weights = np.frombuffer(mp_w.get_obj()).reshape(weightShape)
-
     counter = mp.Value('i', 0)
     qsize = mp.Array('i', [0] * FLAGS.cores)
 
     # Initialize latent variable so that expectation equals average rating
     avgRating = data.sum() / data.nnz
-    latent[:] = np.random.rand(latentShape[0], latentShape[1]) * math.sqrt(avgRating / rank / 0.25)
-    weights[:] = np.zeros(weightShape)
+    latent[:] = np.random.rand(sum(data.shape), rank) * math.sqrt(avgRating / rank / 0.25)
 
     slices = slice(data, FLAGS.cores)
     rowSlices = rowSlice(data, FLAGS.cores)
@@ -257,13 +248,9 @@ def main(argv):
 
     dataTraining = io.mmread("data/" + FLAGS.train)
     dataTesting = io.mmread("data/" + FLAGS.test)
-    movie = io.mmread("data/" + FLAGS.movie)
-    print dataTraining.shape
-    print dataTesting.shape
-    print movie.shape
-
-    latent = SGDNOMAD(dataTraining, movie, FLAGS.eta, FLAGS.lamb, FLAGS.rank, FLAGS.maxit)
-    #latent = SGD(dataTraining, FLAGS.eta, FLAGS.lamb, FLAGS.rank, FLAGS.maxit)
+    #print slice(dataTraining, FLAGS.cores)
+    #latent = SGDNOMAD(dataTraining, FLAGS.eta, FLAGS.lamb, FLAGS.rank, FLAGS.maxit)
+    latent = SGD(dataTraining, FLAGS.eta, FLAGS.lamb, FLAGS.rank, FLAGS.maxit)
 
 
 if __name__ == '__main__':
