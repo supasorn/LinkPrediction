@@ -375,6 +375,7 @@ def main(argv):
     random.seed(1)
     np.random.seed(1)
 
+
     dataTraining = io.mmread("data/" + FLAGS.train)
     dataTesting = io.mmread("data/" + FLAGS.test)
     movies = io.mmread("data/" + FLAGS.movie)
