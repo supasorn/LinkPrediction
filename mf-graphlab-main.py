@@ -403,6 +403,7 @@ def main(argv):
       print '%s\\nUsage: %s ARGS\\n%s' % (e, sys.argv[0], FLAGS)
       sys.exit(1)
 
+    gl.set_runtime_config('GRAPHLAB_DEFAULT_NUM_GRAPH_LAMBDA_WORKERS', 64)
     for flag_name in sorted(FLAGS.RegisteredFlags()):
         if flag_name not in ["?", "help", "helpshort", "helpxml"]:
             fl = FLAGS.FlagDict()[flag_name]
