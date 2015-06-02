@@ -14,6 +14,8 @@ from itertools import izip
 from datetime import datetime
 from numpy.random import rand
 import sys
+
+np.random.seed(123)
 random.seed(123)
 
 
@@ -212,7 +214,7 @@ def sgd_gl_edge(g, X_train, X_test,                 lambduh, k, eta=0.05, unifie
     L, R, wu, wm, bu, bm = getLR(g, unified, k)
     rmse_train = [get_rmse(X_train, L, R, wu, wm, bu, bm) if rmse_train is None else rmse_train]
 
-    print "%s: %.4f" % (0,rmse_train[-1])
+    print "%s: %.4f" % (0, rmse_train[-1])
     start = datetime.now()
 
     print 'eta=%s, lambduh=%s, lambduh=%s, unified=%s, lambduh_w=%s' % (eta, lambduh, lambduh, unified, lambduh_w)
@@ -224,6 +226,9 @@ def sgd_gl_edge(g, X_train, X_test,                 lambduh, k, eta=0.05, unifie
         rmse_train.append(get_rmse(X_train, L, R, wu, wm, bu, bm))
 
         print "%s : %.4f (time:%s)" % (i, rmse_train[-1], datetime.now()-start)
+        if np.isnan(rmse_train[-1]):
+            break
+
         if abs(rmse_train[-1] - rmse_train[-2]) < e_rmse:
             break
 
@@ -281,49 +286,49 @@ def eta_search():
 
 # In[67]:
 
-# def search_pure_mf(eta=0.05):
-#     X_train_debug, X_test_debug = load('ratings_debug')
-#     min_rmse_test = float('inf')
-#     min_k, min_lambduh = None, None
-#     rmse_map = {}
-#     for lambduh in [0.001, 0.01, 0.1]:
-#         for k in [5, 10, 20]:
-#             g = get_graph(X_train_debug, k, movies)
-#             rmse_trainunified, rmse_test, L, R, wu, wm, bu, bm = \
-#                 sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta, Niter=20)
-#             rmse_map.get(lambduh, {})[k] = rmse_test
-#             print "l=%s, k=%s, rmse=%.4f" % (lambduh, k, rmse_test)
-#             if rmse_test < min_rmse_test:
-#                 min_rmse_test = rmse_test
-#                 min_k = k
-#                 min_lambduh = lambduh
-#     return min_rmse_test, min_lambduh, min_k
-
-
 def search_pure_mf(eta=0.05):
     X_train_debug, X_test_debug = load('ratings_debug')
     min_rmse_test = float('inf')
     min_k, min_lambduh = None, None
     rmse_map = {}
-    lambduh = 0.01
-    for k in [5, 10, 20]:
-        g = get_graph(X_train_debug, k, movies)
-        rmse_trainunified, rmse_test, L, R, wu, wm, bu, bm =             sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta, Niter=20)
-        rmse_map.get(lambduh, {})[k] = rmse_test
-        print "l=%s, k=%s, rmse=%.4f" % (lambduh, k, rmse_test)
-        if rmse_test < min_rmse_test:
-            min_rmse_test = rmse_test
-            min_k = k
-            min_lambduh = lambduh
-    for lambduh in [0.001, 0.1]:
-        g = get_graph(X_train_debug, k, movies)
-        rmse_trainunified, rmse_test, L, R, wu, wm, bu, bm =             sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta, Niter=20)
-        rmse_map.get(lambduh, {})[k] = rmse_test
-        print "l=%s, k=%s, rmse=%.4f" % (lambduh, k, rmse_test)
-        if rmse_test < min_rmse_test:
-            min_rmse_test = rmse_test
-            min_lambduh = lambduh
+    for lambduh in [0.001, 0.01, 0.1]:
+        for k in [5, 10, 20]:
+            g = get_graph(X_train_debug, k, movies)
+            rmse_trainunified, rmse_test, L, R, wu, wm, bu, bm = \
+                sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta, Niter=20)
+            rmse_map.get(lambduh, {})[k] = rmse_test
+            print "l=%s, k=%s, rmse=%.4f" % (lambduh, k, rmse_test)
+            if rmse_test < min_rmse_test:
+                min_rmse_test = rmse_test
+                min_k = k
+                min_lambduh = lambduh
     return min_rmse_test, min_lambduh, min_k
+
+
+#def search_pure_mf(eta=0.05):
+    #X_train_debug, X_test_debug = load('ratings_debug')
+    #min_rmse_test = float('inf')
+    #min_k, min_lambduh = None, None
+    #rmse_map = {}
+    #lambduh = 0.01
+    #for k in [5, 10, 20]:
+        #g = get_graph(X_train_debug, k, movies)
+        #rmse_trainunified, rmse_test, L, R, wu, wm, bu, bm =             sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta, Niter=20)
+        #rmse_map.get(lambduh, {})[k] = rmse_test
+        #print "l=%s, k=%s, rmse=%.4f" % (lambduh, k, rmse_test)
+        #if rmse_test < min_rmse_test:
+            #min_rmse_test = rmse_test
+            #min_k = k
+            #min_lambduh = lambduh
+    #for lambduh in [0.001, 0.1]:
+        #g = get_graph(X_train_debug, k, movies)
+        #rmse_trainunified, rmse_test, L, R, wu, wm, bu, bm =             sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta, Niter=20)
+        #rmse_map.get(lambduh, {})[k] = rmse_test
+        #print "l=%s, k=%s, rmse=%.4f" % (lambduh, k, rmse_test)
+        #if rmse_test < min_rmse_test:
+            #min_rmse_test = rmse_test
+            #min_lambduh = lambduh
+    #return min_rmse_test, min_lambduh, min_k
 
 def run_pure_mf(min_lambduh, min_k, eta=0.05):
     X_train, X_test = load('ratings')
@@ -352,22 +357,23 @@ def search_cf(eta=0.05):
     rmse_map = {}
     for lambduh in [0.001, 0.01, 0.1]:
         for lambduh_w in [0.001, 0.01, 0.1]:
-            g = get_graph(X_train_debug, k, movies)
-            rmse_train, rmse_test, L, R, wu, wm, bu, bm =                 sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta,                             unified=true, lambduh_w=lambduh_w)
-            rmse_map.get(lambduh, {}).get(k,{})[lambduh_w] = rmse_test
-            print "l=%s, k=%s, l_w=%s, rmse=%.4f" % (lambduh, k, lambduh_w, rmse_test)
-            if rmse_test < min_rmse_test:
-                min_rmse_test = rmse_test
-                min_k = k
-                min_lambduh = lambduh
-                min_lambduh_w = lambduh_w
+            for k in [5, 10, 20]:
+                g = get_graph(X_train_debug, k, movies)
+                rmse_train, rmse_test, L, R, wu, wm, bu, bm = sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta, unified=True, lambduh_w=lambduh_w)
+                rmse_map.get(lambduh, {}).get(k,{})[lambduh_w] = rmse_test
+                print "l=%s, k=%s, l_w=%s, rmse=%.4f" % (lambduh, k, lambduh_w, rmse_test)
+                if rmse_test < min_rmse_test:
+                    min_rmse_test = rmse_test
+                    min_k = k
+                    min_lambduh = lambduh
+                    min_lambduh_w = lambduh_w
 
     return min_rmse_test, min_lambduh, min_k, min_lambduh_w
 
 def run_cf(min_lambduh, min_k, min_lambduh_w, eta=0.05):
     X_train, X_test = load('ratings')
     g = get_graph(X_train, min_k, movies)
-    rmse_train, rmse_test, L, R =                 sgd_gl_edge(g, X_train, X_test, min_lambduh, min_k, min_eta,                                 unified=true, lambduh_w=min_lambduh_w)
+    rmse_train, rmse_test, L, R =                 sgd_gl_edge(g, X_train, X_test, min_lambduh, min_k, min_eta,                                 unified=True, lambduh_w=min_lambduh_w)
     print rmse_test
     return rmse_map, rmse_train, rmse_test
 
@@ -378,20 +384,16 @@ def run_cf(min_lambduh, min_k, min_lambduh_w, eta=0.05):
 def run_cf2(min_lambduh, min_k, min_lambduh_w, eta=0.05):
     X_train, X_test = load('ratings_cs')
     g = get_graph(X_train, min_k, movies)
-    rmse_train, rmse_test, L, R =                 sgd_gl_edge(g, X_train, X_test, min_lambduh, min_k, min_eta,                                 unified=true, lambduh_w=min_lambduh_w)
+    rmse_train, rmse_test, L, R =                 sgd_gl_edge(g, X_train, X_test, min_lambduh, min_k, min_eta,                                 unified=True, lambduh_w=min_lambduh_w)
     print rmse_test
     return rmse_map, rmse_train, rmse_test
 
 
-# In[ ]:
+def overnightRun():
+    min_rmse_test, min_lambduh, min_k, min_lambduh_w = search_cf()
 
-# min_rmse_test, min_lambduh, min_k, min_lambduh_w = search_cf()
-
-
-# In[ ]:
-
-# rmses_cf = run_cf(min_lambduh, min_k, min_lambduh_w)
-# rmses_cf2 = run_cf2(min_lambduh, min_k, min_lambduh_w)
+    #rmses_cf = run_cf(min_lambduh, min_k, min_lambduh_w)
+    #rmses_cf2 = run_cf2(min_lambduh, min_k, min_lambduh_w)
 
 
 # In[64]:
@@ -403,7 +405,7 @@ def main(argv):
       print '%s\\nUsage: %s ARGS\\n%s' % (e, sys.argv[0], FLAGS)
       sys.exit(1)
 
-    gl.set_runtime_config('GRAPHLAB_DEFAULT_NUM_GRAPH_LAMBDA_WORKERS', 64)
+    gl.set_runtime_config('GRAPHLAB_DEFAULT_NUM_GRAPH_LAMBDA_WORKERS', 16)
     for flag_name in sorted(FLAGS.RegisteredFlags()):
         if flag_name not in ["?", "help", "helpshort", "helpxml"]:
             fl = FLAGS.FlagDict()[flag_name]
@@ -421,5 +423,6 @@ def main(argv):
     print 'rmse_test', rmse_test
 
 if __name__ == '__main__':
-    main(sys.argv)
+    #main(sys.argv)
+    overnightRun()
 
