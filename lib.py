@@ -6,7 +6,7 @@ from graphlab import SGraph
 import numpy as np
 import random
 import scipy.io as sio
-from itertools import izip
+from itertools import izip, product
 from datetime import datetime
 from numpy.random import rand
 random.seed(123)
@@ -248,26 +248,6 @@ def sgd_gl_edge(g, X_train, X_test,
     return rmse_train, rmse_test, L, R, wu, wm, bu, bm
 
 
-def search_pure(eta=0.05, Niter=20, data='ratings_debug'):
-    # pylint: disable=unused-variable
-    X_train_debug, X_test_debug = load(data)
-    min_rmse_test = float('inf')
-    min_k, min_lambduh = None, None
-    rmse_map = {}
-    for lambduh in [0.001, 0.01, 0.1]:
-        for k in [5, 10, 20]:
-            g = get_graph(X_train_debug, k)
-            rmse_train, rmse_test, L, R, wu, wm, bu, bm = \
-                sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta, \
-                    Niter=Niter, output="search-pure-l_%s-k_%s"%(lambduh, k))
-            rmse_map.get(lambduh, {})[k] = rmse_test
-            print "l=%s, k=%s, rmse=%.4f" % (lambduh, k, rmse_test[-1][1])
-            if rmse_test[-1][1] < min_rmse_test or np.isnan(rmse_test[-1][1]):
-                min_rmse_test = rmse_test[-1][1]
-                min_k = k
-                min_lambduh = lambduh
-    return min_rmse_test, min_lambduh, min_k
-
 
 def search_pure_coor(eta=0.05, Niter=20, data='ratings_debug'):
     # pylint: disable=unused-variable
@@ -353,39 +333,66 @@ def search_unified_coor(eta=0.05, Niter=20, data='ratings_debug'):
     return min_rmse_test, min_lambduh, min_k, min_lambduh_w
 
 
-def search_unified(eta=0.05, Niter=20, data='ratings_debug'):
-    # pylint: disable=unused-variable
-    X_train_debug, X_test_debug = load(data)
-    min_rmse_test = float('inf')
-    min_k, min_lambduh, min_lambduh_w = None, None, None
+def search_mf(params, data='ratings_debug', Niter=20, save_freq=5,\
+        min_rmse_test=float('inf'), min_param=None):
+    # pylint: disable=W0612
+    X_train, X_test = load(data)
     rmse_map = {}
-    for k in [5, 10, 20]:
-        for lambduh in [0.001, 0.01, 0.1]:
-            for lambduh_w in [0.001, 0.01, 0.1]:
-                g = get_graph(X_train_debug, k)
-                rmse_train, rmse_test, L, R, wu, wm, bu, bm = \
-                    sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta,\
-                        unified=True, lambduh_w=lambduh_w, Niter=Niter, \
-                        output="pure-l_%s-lw_%s-k_%s"%(lambduh, lambduh_w, k))
-                rmse_map.get(lambduh, {}).get(k, {})[lambduh_w] = rmse_test
-                print "l=%s, k=%s, l_w=%s, rmse=%.4f" % (lambduh, k, lambduh_w, rmse_test)
-                if rmse_test < min_rmse_test or np.isnan(rmse_test):
-                    min_rmse_test = rmse_test
-                    min_k = k
-                    min_lambduh = lambduh
-                    min_lambduh_w = lambduh_w
 
-    return min_rmse_test, min_lambduh, min_k, min_lambduh_w
+    for param in params:
+        (lambduh, k, eta, unified, lambduh_w, start_i) = param
+        g = get_graph(X_train, k)
+        rmse_train, rmse_test, L, R, wu, wm, bu, bm = \
+            sgd_gl_edge(g, X_train, X_test, lambduh, k, eta,\
+                unified=True, lambduh_w=lambduh_w, Niter=Niter, start_i=start_i, \
+                output="pure-l_%s-lw_%s-k_%s"%(lambduh, lambduh_w, k), save_freq=save_freq)
+
+        rmse_map[param] = rmse_test
+        print "(lambduh, k, eta, unified, lambduh_w) = %s, rmse_test=%.4f" % (param, rmse_test)
+        if rmse_test < min_rmse_test or np.isnan(rmse_test):
+            min_rmse_test = rmse_test
+            min_param = param
+
+    return min_rmse_test, min_param
+
+def search_unified():
+    params = product(\
+        [0.001, 0.01, 0.1], # lambda
+        [5, 10, 20], # k
+        [0.05], # eta
+        [True], #unified
+        [0.001, 0.01, 0.1], #l_w
+        [0] #start_i
+    )
+    return search_mf(params)
 
 
-def run_unified(lambduh, k, lambduh_w, eta=0.05, Niter=30, data='ratings'):
-    # pylint: disable=unused-variable
-    X_train, X_test = load('ratings')
+def search_pure():
+    params = product(\
+        # lambda
+        [0.001, 0.01, 0.1],
+        # k
+        [5, 10, 20],
+        # eta
+        [0.05],
+        #unified
+        [False],
+        #l_w
+        [0],
+        #start_i
+        [0]
+    )
+    return search_mf(params)
+
+
+def run_mf(param, data='ratings', Niter=30, save_freq=5):
+    # pylint: disable=W0612
+    X_train, X_test = load(data)
+
+    (lambduh, k, eta, unified, lambduh_w, start_i) = param
     g = get_graph(X_train, k)
-    rmse_train, rmse_test, L, R, wu, wm, bu, bm = \
-        sgd_gl_edge(g, X_train, X_test, lambduh, k, eta, \
-            unified=True, lambduh_w=lambduh_w, Niter=Niter, \
-            output="pure-l_%s-lw_%s-k_%s"%(lambduh, lambduh_w, k))
-    print rmse_test[-1][1]
-    return rmse_train, rmse_test
+    return sgd_gl_edge(g, X_train, X_test, lambduh, k, eta,\
+        unified=True, lambduh_w=lambduh_w, Niter=Niter, start_i=start_i, \
+        output="pure-l_%s-lw_%s-k_%s"%(lambduh, lambduh_w, k), save_freq=save_freq)
+
 
