@@ -13,6 +13,7 @@ import scipy.io as sio
 from itertools import izip
 from datetime import datetime
 from numpy.random import rand
+import sys
 random.seed(123)
 
 
@@ -402,9 +403,6 @@ def main(argv):
       print '%s\\nUsage: %s ARGS\\n%s' % (e, sys.argv[0], FLAGS)
       sys.exit(1)
 
-    if FLAGS.cores == -1:
-        FLAGS.cores = mp.cpu_count()
-
     for flag_name in sorted(FLAGS.RegisteredFlags()):
         if flag_name not in ["?", "help", "helpshort", "helpxml"]:
             fl = FLAGS.FlagDict()[flag_name]
@@ -420,4 +418,7 @@ def main(argv):
 
     print 'rmse_train', rmse_train
     print 'rmse_test', rmse_test
+
+if __name__ == '__main__':
+    main(sys.argv)
 
