@@ -35,3 +35,5 @@ data/*
 *.mtx
 *.pdf
 .ipynb_checkpoints
+state
+output
