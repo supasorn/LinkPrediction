@@ -339,11 +339,16 @@ def SGDNOMAD(data, movies_, eta_ = 0.01, lambduh_ = 0.1, lambduh_w_ = 0.1, rank 
     while counter.value < countPerEpoch * 300: 
         #time.sleep(60 * 3)
         time.sleep(10)
-        printLog(it, time.time() - start, 0, RMSE2(slices, data.nnz, p2))
+        #printLog(it, time.time() - start, 0, RMSE2(slices, data.nnz, p2))
         print counter.value
         #print sum([q.qsize() for q in queues])
         print [q for q in qsize]
 
+        if time.time() - start > 60:
+            break
+
+    print "done. Evaluating.."
+    printLog(it, time.time() - start, 0, RMSE2(slices, data.nnz, p2))
     print "done"
 
     p.close()
