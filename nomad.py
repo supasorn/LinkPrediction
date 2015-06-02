@@ -87,6 +87,7 @@ def rowSlice(data, cores):
 
     return slices
 
+
 def slice(data, cores):
     size = data.shape
     splitRow = np.round(np.linspace(0, size[0], cores + 1)).astype(int)
