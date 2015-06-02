@@ -26,7 +26,7 @@ import gflags
 FLAGS = gflags.FLAGS
 #gflags.DEFINE_string('train', 'netflix_mm_10000_1000', 'Training File')
 #gflags.DEFINE_string('test', 'netflix_mm_10000_1000', 'Testing File')
-gflags.DEFINE_string('dataset', 'ratings_debug', 'dataset')
+gflags.DEFINE_string('dataset', 'ratings_debug_train', 'dataset')
 # gflags.DEFINE_string('movie', 'movies', 'Testing File')
 gflags.DEFINE_integer('rank', 10, 'Matrix Rank')
 gflags.DEFINE_float('lamb', 0.1, 'Lambda')
