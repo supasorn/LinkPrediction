@@ -199,43 +199,56 @@ def run_debug(g=None, Niter=1):
     X_train, X_test = load('ratings_debug_small')
     if g is None:
         g = get_graph(X_train, 5)
-    return sgd_gl_edge(g, X_train, X_test, 0.001, 5, 0.05, Niter=Niter, unified=True, lambduh_w=0.001)
+    return sgd_gl_edge(g, X_train, X_test, 0.001, 5, 0.05, Niter=Niter, unified=True, lambduh_w=0.001, output='debug')
 
 
 def sgd_gl_edge(g, X_train, X_test,
                 lambduh, k, eta=0.05, unified=False, lambduh_w=0, Niter=100,
-                e_rmse=0.005, rmse_train=None, test_freq=5):
+                e_rmse=0.005, test_freq=5, output=None, save_freq=0, start_i=0):
+    # pylint: disable=W0631
     get_rmse = rmse_u if unified else rmse
 
+    def logoutput(s):
+        with open('output/%s.out'%output, 'a') as f:
+            f.write(s+'\n')
+        print s
+    def logstdout(s):
+        print s
+
+    log = logstdout if output is None else logoutput
+
     L, R, wu, wm, bu, bm = getLR(g, unified, k)
-    rmse_train = [get_rmse(
-        X_train, L, R, wu, wm, bu, bm) if rmse_train is None else rmse_train]
+    rmse_train = [get_rmse(X_train, L, R, wu, wm, bu, bm)]
     rmse_test = []
 
-    print "%s: %.4f" % (0, rmse_train[-1])
     start = datetime.now()
+    print 'eta=%s, lambduh=%s, unified=%s, lambduh_w=%s\n' % (eta, lambduh, unified, lambduh_w)
+    log(" i,  type,   rmse,           time")
+    log("%2s, train, %.4f, %s" % (start_i, rmse_train[-1], datetime.now() - start))
 
-    print 'eta=%s, lambduh=%s, unified=%s, lambduh_w=%s' % (eta, lambduh, unified, lambduh_w)
-
-    for i in xrange(1, Niter + 1):
+    for i in xrange(start_i+1, Niter + 1):
         g = g.triple_apply(sgd_triple_updater(
             eta, lambduh, lambduh, unified, lambduh_w), ['factors', 'w', 'b'])
 
         L, R, wu, wm, bu, bm = getLR(g, unified, k)
         rmse_train.append(get_rmse(X_train, L, R, wu, wm, bu, bm))
 
-        print "%s : %.4f (time:%s)" % (i, rmse_train[-1], datetime.now() - start)
+        log("%2s, train, %.4f, %s" % (i, rmse_train[-1], datetime.now() - start))
         if abs(rmse_train[-1] - rmse_train[-2]) < e_rmse or np.isnan(rmse_train[-1]):
             break
         if test_freq > 0 and i % test_freq == 0:
             rmse_test.append((i, get_rmse(X_test, L, R, wu, wm, bu, bm, movies)))
+            log("%s,  test, %.4f, %s" % (i, rmse_test[-1][1], datetime.now() - start))
+
+        if save_freq > 0 and i % save_freq == 0:
+            g.save('state/%s__%s.graph' % (output, i))
 
     rmse_test.append((i, get_rmse(X_test, L, R, wu, wm, bu, bm))) # pylint: disable=undefined-loop-variable
-    print "test=%.4f" % (rmse_test[-1][1])
+    log("%2s,  test, %.4f, %s" % (i, rmse_test[-1][1], datetime.now() - start))
     return rmse_train, rmse_test, L, R, wu, wm, bu, bm
 
 
-def search_pure_mf(eta=0.05, Niter=20, data='ratings_debug'):
+def search_pure(eta=0.05, Niter=20, data='ratings_debug'):
     # pylint: disable=unused-variable
     X_train_debug, X_test_debug = load(data)
     min_rmse_test = float('inf')
@@ -245,8 +258,8 @@ def search_pure_mf(eta=0.05, Niter=20, data='ratings_debug'):
         for k in [5, 10, 20]:
             g = get_graph(X_train_debug, k)
             rmse_train, rmse_test, L, R, wu, wm, bu, bm = \
-                sgd_gl_edge(
-                    g, X_train_debug, X_test_debug, lambduh, k, eta, Niter=Niter)
+                sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta, \
+                    Niter=Niter, output="search-pure-l_%s-k_%s"%(lambduh, k))
             rmse_map.get(lambduh, {})[k] = rmse_test
             print "l=%s, k=%s, rmse=%.4f" % (lambduh, k, rmse_test[-1][1])
             if rmse_test[-1][1] < min_rmse_test or np.isnan(rmse_test[-1][1]):
@@ -256,7 +269,7 @@ def search_pure_mf(eta=0.05, Niter=20, data='ratings_debug'):
     return min_rmse_test, min_lambduh, min_k
 
 
-def search_pure_mf_coor(eta=0.05, Niter=20, data='ratings_debug'):
+def search_pure_coor(eta=0.05, Niter=20, data='ratings_debug'):
     # pylint: disable=unused-variable
     X_train_debug, X_test_debug = load(data)
     min_rmse_test = float('inf')
@@ -267,7 +280,8 @@ def search_pure_mf_coor(eta=0.05, Niter=20, data='ratings_debug'):
         g = get_graph(X_train_debug, k)
         rmse_train, rmse_test, L, R, wu, wm, bu, bm = \
             sgd_gl_edge(
-                g, X_train_debug, X_test_debug, lambduh, k, eta, Niter=Niter)
+                g, X_train_debug, X_test_debug, lambduh, k, eta, \
+                    Niter=Niter, output="search-pure-coor-l_%s-k_%s"%(lambduh, k))
         rmse_map.get(lambduh, {})[k] = rmse_test
         print "l=%s, k=%s, rmse=%.4f" % (lambduh, k, rmse_test[-1][1])
         if rmse_test[-1][1] < min_rmse_test or np.isnan(rmse_test[-1][1]):
@@ -279,7 +293,8 @@ def search_pure_mf_coor(eta=0.05, Niter=20, data='ratings_debug'):
         g = get_graph(X_train_debug, k)
         rmse_train, rmse_test, L, R, wu, wm, bu, bm = \
             sgd_gl_edge(
-                g, X_train_debug, X_test_debug, lambduh, k, eta, Niter=Niter)
+                g, X_train_debug, X_test_debug, lambduh, k, eta, \
+                    Niter=Niter, output="search-pure-coor-l_%s-k_%s"%(lambduh, k))
         rmse_map.get(lambduh, {})[k] = rmse_test
         print "l=%s, k=%s, rmse=%.4f" % (lambduh, k, rmse_test[-1][1])
         if rmse_test[-1][1] < min_rmse_test or np.isnan(rmse_test[-1][1]):
@@ -288,17 +303,20 @@ def search_pure_mf_coor(eta=0.05, Niter=20, data='ratings_debug'):
     return min_rmse_test, min_lambduh, min_k
 
 
-def run_pure_mf(min_lambduh, min_k, eta=0.05):
+def run_pure(lambduh, k, eta=0.05, Niter=30):
     # pylint: disable=unused-variable
+
     X_train, X_test = load('ratings')
     g = get_graph(X_train, 5)
     rmse_train, rmse_test, L, R, wu, wm, bu, bm = \
-        sgd_gl_edge(g, X_train, X_test, min_lambduh, min_k)
+        sgd_gl_edge(g, X_train, X_test, lambduh, k, eta, \
+                    Niter=Niter, output="search-pure-coor-l_%s-k_%s"%(lambduh, k))
+
     print rmse_test[-1][1]
     return rmse_train, rmse_test
 
 
-def search_cf_coor(eta=0.05, Niter=20, data='ratings_debug'):
+def search_unified_coor(eta=0.05, Niter=20, data='ratings_debug'):
     # pylint: disable=unused-variable
     X_train_debug, X_test_debug = load(data)
     min_rmse_test = float('inf')
@@ -308,8 +326,9 @@ def search_cf_coor(eta=0.05, Niter=20, data='ratings_debug'):
     for k in [5, 10, 20]:
         g = get_graph(X_train_debug, k)
         rmse_train, rmse_test, L, R, wu, wm, bu, bm = \
-            sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta,
-                        unified=True, lambduh_w=lambduh_w, Niter=Niter)
+            sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta,\
+                unified=True, lambduh_w=lambduh_w, Niter=Niter, \
+                output="pure-l_%s-lw_%s-k_%s"%(lambduh, lambduh_w, k))
         rmse_map.get(lambduh, {}).get(k, {})[lambduh_w] = rmse_test
         print "l=%s, k=%s, l_w=%s, rmse=%.4f" % (lambduh, k, lambduh_w, rmse_test[-1][1])
         if rmse_test[-1][1] < min_rmse_test or np.isnan(rmse_test[-1][1]):
@@ -320,8 +339,9 @@ def search_cf_coor(eta=0.05, Niter=20, data='ratings_debug'):
         for lambduh_w in [0.001, 0.01, 0.1]:
             g = get_graph(X_train_debug, k)
             rmse_train, rmse_test, L, R, wu, wm, bu, bm = \
-                sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta,
-                            unified=True, lambduh_w=lambduh_w, Niter=Niter)
+                sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta,\
+                unified=True, lambduh_w=lambduh_w, Niter=Niter, \
+                output="pure-l_%s-lw_%s-k_%s"%(lambduh, lambduh_w, k))
             rmse_map.get(lambduh, {}).get(k, {})[lambduh_w] = rmse_test
 
             print "l=%s, k=%s, l_w=%s, rmse=%.4f" % (lambduh, k, lambduh_w, rmse_test[-1][1])
@@ -333,9 +353,9 @@ def search_cf_coor(eta=0.05, Niter=20, data='ratings_debug'):
     return min_rmse_test, min_lambduh, min_k, min_lambduh_w
 
 
-def search_cf(eta=0.05):
+def search_unified(eta=0.05, Niter=20, data='ratings_debug'):
     # pylint: disable=unused-variable
-    X_train_debug, X_test_debug = load('ratings_debug')
+    X_train_debug, X_test_debug = load(data)
     min_rmse_test = float('inf')
     min_k, min_lambduh, min_lambduh_w = None, None, None
     rmse_map = {}
@@ -344,8 +364,9 @@ def search_cf(eta=0.05):
             for lambduh_w in [0.001, 0.01, 0.1]:
                 g = get_graph(X_train_debug, k)
                 rmse_train, rmse_test, L, R, wu, wm, bu, bm = \
-                    sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta,
-                                unified=True, lambduh_w=lambduh_w)
+                    sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta,\
+                        unified=True, lambduh_w=lambduh_w, Niter=Niter, \
+                        output="pure-l_%s-lw_%s-k_%s"%(lambduh, lambduh_w, k))
                 rmse_map.get(lambduh, {}).get(k, {})[lambduh_w] = rmse_test
                 print "l=%s, k=%s, l_w=%s, rmse=%.4f" % (lambduh, k, lambduh_w, rmse_test)
                 if rmse_test < min_rmse_test or np.isnan(rmse_test):
@@ -357,25 +378,14 @@ def search_cf(eta=0.05):
     return min_rmse_test, min_lambduh, min_k, min_lambduh_w
 
 
-def run_cf(min_lambduh, min_k, min_lambduh_w, eta=0.05):
+def run_unified(lambduh, k, lambduh_w, eta=0.05, Niter=30, data='ratings'):
     # pylint: disable=unused-variable
     X_train, X_test = load('ratings')
-    g = get_graph(X_train, min_k)
+    g = get_graph(X_train, k)
     rmse_train, rmse_test, L, R, wu, wm, bu, bm = \
-        sgd_gl_edge(g, X_train, X_test, min_lambduh, min_k, eta,
-                    unified=True, lambduh_w=min_lambduh_w)
+        sgd_gl_edge(g, X_train, X_test, lambduh, k, eta, \
+            unified=True, lambduh_w=lambduh_w, Niter=Niter, \
+            output="pure-l_%s-lw_%s-k_%s"%(lambduh, lambduh_w, k))
     print rmse_test[-1][1]
     return rmse_train, rmse_test
 
-# run coldstart to predict cold-start dataset
-
-
-def run_cf2(min_lambduh, min_k, min_lambduh_w, eta=0.05):
-    # pylint: disable=unused-variable
-    X_train, X_test = load('ratings_cs')
-    g = get_graph(X_train, min_k)
-    rmse_train, rmse_test, L, R, wu, wm, bu, bm = \
-        sgd_gl_edge(g, X_train, X_test, min_lambduh, min_k, eta,
-                    unified=True, lambduh_w=min_lambduh_w)
-    print rmse_test
-    return rmse_train, rmse_test

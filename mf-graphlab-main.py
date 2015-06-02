@@ -32,13 +32,12 @@ from lib import n, m, ng, nht, \
     rmse_u, rmse, dot_feature, getLR, \
     sgd_triple_updater, sgd_gl_edge, \
     run_full, run_debug, eta_search, \
-    search_pure_mf, search_pure_mf_coor, run_pure_mf, \
-    search_cf, search_cf_coor, search_cf
-
+    search_pure, search_pure_coor, run_pure, \
+    search_unified, search_unified_coor, run_unified
 
 def overnightRun():
     # pylint: disable=W0622,W0612
-    min_rmse_test, min_lambduh, min_k, min_lambduh_w = search_cf()
+    min_rmse_test, min_lambduh, min_k, min_lambduh_w = search_unified()
 
     #rmses_cf = run_cf(min_lambduh, min_k, min_lambduh_w)
     #rmses_cf2 = run_cf2(min_lambduh, min_k, min_lambduh_w)
