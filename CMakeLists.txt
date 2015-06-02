@@ -13,7 +13,8 @@ add_definitions(-std=gnu++11)
 
 message(${CMAKE_SYSTEM_VERSION})
 message(${CMAKE_CURRENT_SOURCE_DIR})
-set(CMAKE_BUILD_TYPE "Release")
+#set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_BUILD_TYPE "Debug")
 
 add_definitions(-D_LINUX_MAC -D_OPENCV -w)
 
