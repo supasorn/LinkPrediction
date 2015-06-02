@@ -26,7 +26,7 @@ import gflags
 FLAGS = gflags.FLAGS
 #gflags.DEFINE_string('train', 'netflix_mm_10000_1000', 'Training File')
 #gflags.DEFINE_string('test', 'netflix_mm_10000_1000', 'Testing File')
-gflags.DEFINE_string('dataset', 'ratings_debug', 'dataset')
+gflags.DEFINE_string('dataset', 'ratings_debug_small', 'dataset')
 # gflags.DEFINE_string('movie', 'movies', 'Testing File')
 gflags.DEFINE_integer('rank', 10, 'Matrix Rank')
 gflags.DEFINE_float('lamb', 0.1, 'Lambda')
@@ -210,7 +210,7 @@ def run_pure_mf(min_lambduh, min_k, eta=0.05):
 # In[ ]:
 
 def search_cf(eta=0.05):
-    X_train_debug, X_test_debug = load('ratings_debug')
+    X_train_debug, X_test_debug = load('ratings_debug_small')
     min_rmse_test = float('inf')
     min_k, min_lambduh, min_lambduh_w = None, None, None
     rmse_map = {}

@@ -331,17 +331,24 @@ def SGDNOMAD(data, movies_, eta_ = 0.01, lambduh_ = 0.1, lambduh_w_ = 0.1, rank 
 
     p.map_async(updateNOMAD, [(i, a, b, queues) for i, a, b in rowSlices])
 
-    countPerEpoch = FLAGS.cores * data.shape[1]
+    countPerEpoch = FLAGS.cores * (len(colList) - 1)
     start = time.time()
     #print [q.qsize() for q in queues]
     print [q for q in qsize]
+    print "countPerEpoch %d" % countPerEpoch
     while counter.value < countPerEpoch * 300: 
-        time.sleep(20)
-        printLog(it, time.time() - start, 0, RMSE2(slices, data.nnz, p2))
+        #time.sleep(60 * 3)
+        time.sleep(10)
+        #printLog(it, time.time() - start, 0, RMSE2(slices, data.nnz, p2))
         print counter.value
         #print sum([q.qsize() for q in queues])
         print [q for q in qsize]
 
+        if time.time() - start > 60:
+            break
+
+    print "done. Evaluating.."
+    printLog(it, time.time() - start, 0, RMSE2(slices, data.nnz, p2))
     print "done"
 
     p.close()
@@ -377,8 +384,8 @@ def main(argv):
 
 
 
-    #latent = SGDNOMAD(dataTraining, movies, FLAGS.eta, FLAGS.lamb, FLAGS.lambw, FLAGS.rank, FLAGS.maxit)
-    latent = SGD(dataTraining, movies, FLAGS.eta, FLAGS.lamb, FLAGS.lambw, FLAGS.rank, FLAGS.maxit)
+    latent = SGDNOMAD(dataTraining, movies, FLAGS.eta, FLAGS.lamb, FLAGS.lambw, FLAGS.rank, FLAGS.maxit)
+    #latent = SGD(dataTraining, movies, FLAGS.eta, FLAGS.lamb, FLAGS.lambw, FLAGS.rank, FLAGS.maxit)
 
 
 if __name__ == '__main__':
