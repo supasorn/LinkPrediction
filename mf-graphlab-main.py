@@ -351,7 +351,7 @@ def run_pure_mf(min_lambduh, min_k, eta=0.05):
 # In[ ]:
 
 def search_cf(eta=0.05):
-    X_train_debug, X_test_debug = load('ratings_debug')
+    X_train_debug, X_test_debug = load('ratings_debug_small')
     min_rmse_test = float('inf')
     min_k, min_lambduh, min_lambduh_w = None, None, None
     rmse_map = {}

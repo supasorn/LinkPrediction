@@ -337,7 +337,8 @@ def SGDNOMAD(data, movies_, eta_ = 0.01, lambduh_ = 0.1, lambduh_w_ = 0.1, rank 
     print [q for q in qsize]
     print "countPerEpoch %d" % countPerEpoch
     while counter.value < countPerEpoch * 300: 
-        time.sleep(60 * 3)
+        #time.sleep(60 * 3)
+        time.sleep(10)
         printLog(it, time.time() - start, 0, RMSE2(slices, data.nnz, p2))
         print counter.value
         #print sum([q.qsize() for q in queues])
