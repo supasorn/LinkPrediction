@@ -37,34 +37,13 @@ gflags.DEFINE_integer('lamb_w', 0.1, '')
 # gflags.DEFINE_integer('rmseint', 5, 'RMSE Computation Interval')
 # gflags.DEFINE_integer('cores', -1, 'CPU cores')
 
-from lib import load, get_features, prefix, remove, get_vertices, get_graph, \
+from lib import n, m, ng, nht, user_ids, movie_ids, uids, mids,\
+    load, get_features, prefix, remove, get_vertices, get_graph, \
     rmse_u,rmse, dot_feature, getLR, sgd_triple_updater
-
-# In[54]:
-
-n, m = (138493, 27278)
-ng, nht = 19, 40 #
-user_ids = range(n)
-movie_ids = range(m)
-uids = map(prefix('u'), user_ids)
-mids = map(prefix('m'), movie_ids)
-
-
-# In[57]:
 
 movies = sio.mmread('data/movies.mtx').tocsr()
 movies.eliminate_zeros()
 movies_features = list(get_features(movies[i]) for i in xrange(m))
-
-
-# In[290]:
-
-# updater = sgd_triple_updater(eta=0.05, lambda_u=0.01, lambda_v=0.01, unified=True, lambda_w=.01)
-# e = g.get_edges()[0]
-# src = g.get_vertices(ids=e['__src_id'])
-# dst = g.get_vertices(ids=e['__dst_id'])
-# updater(src, e, dst)
-
 
 
 def sgd_gl_edge(g, X_train, X_test,                 lambduh, k, eta=0.05, unified=False, lambduh_w=0, Niter=100, e_rmse=0.005, rmse_train=None):
@@ -95,55 +74,6 @@ def sgd_gl_edge(g, X_train, X_test,                 lambduh, k, eta=0.05, unifie
     print "test=%.4f" % (rmse_test)
     return rmse_train, rmse_test, L, R, wu, wm, bu, bm
 
-
-
-# In[14]:
-
-def run_full():
-    X_train, X_test = load('ratings')
-    g = get_graph(X_train, 5, movies)
-    return sgd_gl_edge(g, X_train, X_test, 0.01, 5)
-
-
-# In[15]:
-
-def run_debug(g=None, Niter=1):
-    X_train, X_test = load('ratings_debug_small')
-    if g is None:
-        g = get_graph(X_train, 5, movies)
-    return sgd_gl_edge(g, X_train, X_test, 0.1, 5, 0.01, Niter=Niter, unified=True, lambduh_w=0.1)
-
-
-# In[63]:
-
-# rmse_train, rmse_test, L, R, wu, wm, bu, bm = run_debug()
-
-
-# In[ ]:
-
-def eta_search():
-    X_train_debug, X_test_debug = load('ratings_debug')
-    min_rmse_test = float('inf')
-    min_k, min_lambduh = None, None
-    rmse_map = {}
-    for eta in [0.01, 0.05, 0.1]:
-        print 'eta %s'%eta
-        for lambduh in [0.01]: #[0, 0.001, 0.01, 0.1, 1]:
-            for k in [5]: #, 10, 20]:
-                g = get_graph(X_train_debug, 5, movies)
-                rmse_train, rmse_test, L, R, wu, wm, bu, bm =                     sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta, Niter=3)
-                rmse_map.get(lambduh, {}).get(k,{})[eta] = rmse_test
-                print "l=%s, k=%s, rmse=%.4f" % (lambduh, k, rmse_test)
-                if rmse_test < min_rmse_test:
-                    min_rmse_test = rmse_test
-                    min_k = k
-                    min_eta = eta
-                    min_lambduh = lambduh
-    print min_eta
-    return rmse_map, min_lambduh, min_k, min_eta
-
-
-# In[67]:
 
 def search_pure_mf(eta=0.05):
     X_train_debug, X_test_debug = load('ratings_debug')

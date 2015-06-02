@@ -11,6 +11,18 @@ from numpy.random import rand
 random.seed(123)
 np.random.seed(123)
 
+
+def prefix(p):
+    return lambda x: "%s%s"%(p,x)
+
+
+n, m = (138493, 27278)
+ng, nht = 19, 40
+user_ids = range(n)
+movie_ids = range(m)
+uids = map(prefix('u'), user_ids)
+mids = map(prefix('m'), movie_ids)
+
 def load(name):
     return gl.load_sframe('data/%s_train.sframe' % name), \
         gl.load_sframe('data/%s_test.sframe' % name)
@@ -19,16 +31,13 @@ def get_features(m):
     return dict(zip(m.indices, m.data))
 
 
-def prefix(p):
-    return lambda x: "%s%s"%(p,x)
-
 def remove(c):
     def r(x):
         del x[c]
         return x
     return r
 
-def get_vertices(n, m, k, movies, factor0=1):
+def get_vertices(n, m, k, movies_features, factor0=1):
     return SFrame({
             # Movies
             '__id': mids,
@@ -60,7 +69,7 @@ def get_graph(X_train, k, movies):
 
 
 
-def rmse_u(sf, L, R, wu, wm, bu, bm):
+def rmse_u(sf, L, R, wu, wm, bu, bm, movies):
     def get_se(r):
         u, m, r = r['userId'], r['movieId'], r['rating']
         movie = movies[m]
@@ -73,7 +82,7 @@ def rmse_u(sf, L, R, wu, wm, bu, bm):
     se = sf.apply(get_se)
     return se.mean() ** 0.5
 
-def rmse(sf, L, R,  wu, wm, bu, bm):
+def rmse(sf, L, R,  wu, wm, bu, bm, movies):
     se = sf.apply(lambda r: (L[r['userId']].dot(R[:,r['movieId']]) - r['rating'])**2)
     return se.mean() ** 0.5
 
@@ -107,3 +116,69 @@ def getLR(g, unified, k):
         bm[mids] = M['b']
 
     return L, R, wu, wm, bu, bm
+
+def sgd_triple_updater(eta, lambda_u, lambda_v, unified, lambda_w, biased=False):
+    c_u = 1-eta*lambda_u
+    c_v = 1-eta*lambda_v
+    c_w = 1-eta*lambda_w
+    def updater(src, edge, dst):
+        Lu = np.array(src['factors'])
+        Rv = np.array(dst['factors'])
+        ruv = edge['rating']
+        rhat = Lu.dot(Rv)
+        if unified or biased:
+            rhat += src['b'] + dst['b']
+        if unified:
+            rhat += dot_feature(src['w'], dst['w'], dst['features'])
+
+        eps = rhat - ruv
+        eta_eps = eta*eps
+        src['factors'] = c_u * Lu - eta_eps * Rv
+        dst['factors'] = c_v * Rv - eta_eps * Lu
+        if unified:
+            src['w'] = c_w * np.array(src['w'])
+            dst['w'] = c_w * np.array(dst['w'])
+            for i, x in dst['features'].iteritems():
+                dx = eta_eps * x
+                src['w'][i] -= dx
+                dst['w'][i] -= dx
+
+        if unified or biased:
+            src['b'] -= eta_eps
+            dst['b'] -= eta_eps
+
+        return (src, edge, dst)
+    return updater
+
+def eta_search():
+    X_train_debug, X_test_debug = load('ratings_debug')
+    min_rmse_test = float('inf')
+    min_k, min_lambduh = None, None
+    rmse_map = {}
+    for eta in [0.01, 0.05, 0.1]:
+        print 'eta %s'%eta
+        for lambduh in [0.01]: #[0, 0.001, 0.01, 0.1, 1]:
+            for k in [5]: #, 10, 20]:
+                g = get_graph(X_train_debug, 5, movies_features)
+                rmse_train, rmse_test, L, R, wu, wm, bu, bm = \
+                    sgd_gl_edge(g, X_train_debug, X_test_debug, lambduh, k, eta, Niter=3)
+                rmse_map.get(lambduh, {}).get(k,{})[eta] = rmse_test
+                print "l=%s, k=%s, rmse=%.4f" % (lambduh, k, rmse_test[-1][1])
+                if rmse_test[-1][1] < min_rmse_test  or np.isnan(rmse_test[-1][1]):
+                    min_rmse_test = rmse_test[-1][1]
+                    min_k = k
+                    min_eta = eta
+                    min_lambduh = lambduh
+    print min_eta
+    return rmse_map, min_lambduh, min_k, min_eta
+
+def run_full():
+    X_train, X_test = load('ratings')
+    g = get_graph(X_train, 5, movies_features)
+    return sgd_gl_edge(g, X_train, X_test, 0.01, 5)
+
+def run_debug(g=None, Niter=1):
+    X_train, X_test = load('ratings_debug_small')
+    if g is None:
+        g = get_graph(X_train, 5, movies_features)
+    return sgd_gl_edge(g, X_train, X_test, 0.001, 5, 0.05, Niter=Niter, unified=True, lambduh_w=0.001)
