@@ -14,6 +14,8 @@ from itertools import izip
 from datetime import datetime
 from numpy.random import rand
 import sys
+
+np.random.seed(123)
 random.seed(123)
 
 
