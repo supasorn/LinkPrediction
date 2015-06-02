@@ -237,7 +237,7 @@ def sgd_gl_edge(g, X_train, X_test,
         if abs(rmse_train[-1] - rmse_train[-2]) < e_rmse or np.isnan(rmse_train[-1]):
             break
         if test_freq > 0 and i % test_freq == 0:
-            rmse_test.append((i, get_rmse(X_test, L, R, wu, wm, bu, bm, movies)))
+            rmse_test.append((i, get_rmse(X_test, L, R, wu, wm, bu, bm)))
             log("%s,  test, %.4f, %s" % (i, rmse_test[-1][1], datetime.now() - start))
 
         if save_freq > 0 and i % save_freq == 0:
