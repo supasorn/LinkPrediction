@@ -9,7 +9,7 @@
 \usepackage{cite}
 \usepackage{epsfig, graphics}
 
-\title{Predicting Movies Rating with Cold-Start}
+\title{Predicting Movies Rating with Parallel Stochastic Gradient Descent}
 
 \author{
 	Kanit Wongsuphasawat, Supasorn Suwajanakorn \\
@@ -41,65 +41,197 @@
 \nipsfinalcopy % Uncomment for camera-ready version
 
 \begin{document}
-	
-	\maketitle
-	
-	\section{Problem}
-	Our goal is to predict movie ratings for each user based on previous ratings and movie metadata which includes official genres and user-provided short tags.  Specifically, we plan to implement a learning model based on matrix factorization~\cite{koren:matrix} that addresses the following problems:
-	
-	\textbf{1) Cold-Start Problem.} A common problem for matrix factorization-based method for collaborative filtering is the inability to address unseen items (movies in our case) or users.  We aim to address this problem by using a hybrid model combining matrix factorization and content-based filtering techniques using metadata as features. To address high dimensionality, we plan to compress the dimensionality of tags using hash-kernel techniques~\cite{shi:hashkernels} or constrain bilinear weights matrix $V$ in Equation $\ref{eq:estimate}$ to be low-rank.
-	
-	\textbf{2) Run-time Performance.} We aim to explore parallelization techniques and frameworks that enable fast learning algorithm.  In our initial work, we experiment with a simple interference-free parallelization scheme for stochastic gradient descent (SGD) which avoids work overriding and can simultaneously utilize all available cores. We plan to implement and compare SGD on a distributed framework such as GraphLab.
-	
+
+\maketitle
+
+\section{Problem}
+
+	Our goal is to predict movie ratings for each user based on previous ratings
+	and movie metadata including genres and user-provided tags.
+
+	To address cold-start problem, we formulate
+
+
+	Specifically, we implement a learning model based on matrix
+	factorization~\cite{koren:matrix} that addresses the following problems:
+
+	\textbf{1) Cold-Start Problem.}
+	A common problem for matrix factorization-based method for collaborative
+	filtering is the inability to address unseen items (movies in our case) or
+	users.  We address this problem by using a hybrid model combining matrix
+	factorization and content-based filtering techniques using metadata as
+	features. To address high dimensionality, we compress tags' feature vectors
+	using hash-kernel techniques~\cite{shi:hashkernels}.
+
+	\textbf{2) Run-time Performance.}
+	We aim to explore parallelization techniques and frameworks that enable fast
+	learning algorithm.  In our initial work, we experiment with a simple
+	interference-free parallelization scheme for stochastic gradient descent
+	(SGD) which avoids work overriding and can simultaneously utilize all
+	available cores. We plan to implement and compare SGD on a distributed
+	framework such as GraphLab.
+
 	% We plan to compare our method with Hogwild method by Niu et al.~\cite{niu:hogwild} that uses a shared-memory model without locks to eliminate the locking overhead.
-	
-	\section{Dataset \& Preprocessing}
+
+\section{Dataset \& Preprocessing}
+
 	We use the MovieLens 20M\footnote{http://grouplens.org/datasets/movielens/}
-	as our benchmark dataset.  The dataset contains over 20 million ratings for 27,278 movies by 138,493 users and has information about genres for 131,262 movies, given as a set of genres associated with each movie. The number of unique genres is 19. Additionally, users can provide additional tags to any movies that they may or may not have rated, such as ``dark hero'', ``bollywood'', ``conspiracy theory.''  These tags total to 465 thousand tags with 37,896 unique tags. The dataset excludes users  and their tags who rated fewer than 20 movies. The input rating matrix is sparse with only 0.5\% non-zero values.
-	
-	Our model will be evaluated on both the cold-start problem and the standard prediction problem (in which we predict unknown ratings for already-seen movies in the training set). To acheive that, we generated two datasets: 1. For the standard problem, we obtain a test set by taking out 20\% of all the ratings from the rating matrix and use the remaining for training. Due to our limited computational resources and time, it is infeasible to perform a cross-validation on the full training set, so we further divide the remaining data (80\% of total) by taking 20\% of the columns to be used for the cross-validation purpose. Ratings in these sub-columns are then split into 80\% for training and 20\% for validation. Once all hyper-parameters are learned, we re-train our model on the full training set (i.e. 80\% of original data) and evaluate on the test set. 2. For the cold-start problem, we obtain a test set by taking out 20\% of the {\em columns} from the rating matrix and use the remaining for training. Similarly, we further split the training set for cross-validation, re-train the model on the full training set, and evaluate on the test set.
-	\section{Formulation}
-	In our midway progress report, we implemented a pure regularized matrix factorization for starters which does not address the cold-start problem. In MovieLens data, each movie has a set of genres and user-specified tags associated with it. This implicit information is useful in scenario where we try to predict ratings for unobserved movies that have similar tags to the existing ones and can be used in a feature-based model to complement the prediction. We model these implicit features by $\phi(m) \in \mathbb{R}^{59}$ associated with each movie where the first 19 entries of $\phi(m)$ are binary indicators of whether or not movie $m$ is classified as genre $g_i$ in the set of all genres $G = \{g_1,\ldots, g_?\}$. The remaining 40 entries are features computed with hash kernel of user-specified tags. With these features, we model the interaction as a dot product $w_u \cdot \phi(m)$ where $w_u$ is a weight associated with user $u$. These weight vectors generally capture the importance of genres to a particular user $u$.
-	
-	Consider a scenario where we try to predict ratings of a user $u$ for two different movies where one of the movies stars a very famous actress and the other stars a less well-known set of casts. One can imagine that people may pay less attention to genres if a movie stars their favorite actors/actresses and more attention when they do not know much about the film casts. This suggests that movie-specific biases can be beneficial for modeling this kind of behavior. In particular, we add $w_m$ to the user's weight vector, and instead model the interaction as $(w_u + w_m) \cdot \phi(m)$.
-	
-	Moreover, since part of the observed variation in the ratings is attributed to similar systematic biases \cite{koren:matrix} where certain users tend to rate, on average, higher (or lower) than their peers or certain movies tend to be highly rated, we incorporate user- and movie-specific bias terms in the rating in the final prediction so that the dot product of the movie and user latent variables instead describes the deviation from the user/movie's mean rating.
-	
-	A true first-order approximation of these systematic biases includes a global bias or weight shared by all users. However, we use a slightly different approximation that folds the global bias into individual biases so that learning can be done efficiently due to the ability to  partition the data into independent sub-problems. This allows sequential-consistent learning algorithms to run with fewer blocking operations or enable other bulk or distrubuted synchronization strategies such as DSGD \cite{gemulla2011large}, or NOMAD \cite{yun2013nomad}.
-	
+	as our benchmark dataset.  The dataset contains over 20 million ratings for
+	27,278 movies ($n_m$) by 138,493 users ($n_u$) and has information about
+	genres of each movie, given as a set of genres associated with each
+	movie. There are 19 unique genres ($n_g$). Additionally, the dataset includes user-
+	provided tags, such as ``dark hero'', ``bollywood'', ``conspiracy theory.''
+	There are 465,564 tags with 37,896 unique tags in total. The dataset
+	excludes users and their tags who rated fewer than 20 movies. The input
+	rating matrix is sparse with only 0.5\% non-zero values.
+
+	Our model will be evaluated on both the cold-start problem and the standard
+	prediction problem (in which we predict unknown ratings for already-seen
+	movies in the training set). To achieve that, we generated two datasets from the
+	rating matrix R (of rank $n_u \times n_m$):
+
+	\textbf{1) Training and test data set for the standard problem ($D_s$).}
+	For the standard problem, we obtain a test set by taking out 20\% of all the
+	ratings from the rating matrix and use the remaining for training.
+	Due to our limited computational resources and time, it is infeasible to
+	perform a cross-validation on the full training set, so we divide a subset
+	of the training data into 4:1 split as a small training and validation set
+	for determining hyper-parameter.  Once all hyper-parameters are learned, we
+	re-train our model on the full training set (i.e. 80\% of original data) and
+	evaluate on the test set.
+
+  \textbf{2) Training and test data set for the cold-start problem ($D_c$).}
+For the cold-start problem, we obtain a test set by taking out 20\% of   the
+{\em columns} from the rating matrix and use the remaining for training. This
+assures that all the ratings of each movie in the test set have not been
+included for model learning.   For cross-validation, we further split the
+training set, re- train the model on the full training set, and evaluate on
+the test set akin to the standard data set.
+
+
+\section{Formulation}
+
+	\subsection{Pure Matrix Factorization}
+
+	We first formulate rating prediction task as a pure matrix factorization problem.
+
+	\begin{align}
+	\min_{L, R} \frac{1}{2}\sum_{r_{um}} \left\{(L_u \cdot R_m - r_{um})^2\right\}
+		+ \frac{\lambda_u}{2}\|L\|^2_F + \frac{\lambda_m}{2}\|R\|^2_F \label{eq:mf}
+	\end{align}
+
+
+
+	\subsection{Hybrid Matrix Factorization}
+
+	In MovieLens data, each movie
+	has a set of genres and user-specified tags associated with it. This
+	implicit information is useful in scenario where we try to predict ratings
+	for unobserved movies that have similar tags to the existing ones and can be
+	used in a feature-based model to complement the prediction. We model these
+	implicit features by $\phi(m) \in \mathbb{R}^{59}$ associated with each
+	movie where the first 19 entries of $\phi(m)$ are binary indicators of
+	whether or not movie $m$ is classified as genre $g_i$ in the set of all
+	genres $G = \{g_1,\ldots, g_?\}$. The remaining 40 entries are features
+	computed with hash kernel of user- specified tags. With these features, we
+	model the interaction as a dot product $w_u \cdot \phi(m)$ where $w_u$ is a
+	weight associated with user $u$. These weight vectors generally capture the
+	importance of genres to a particular user $u$.
+
+
+
+	\textbf{TODO:} Hash Kernel
+
+	Consider a scenario where we try to predict ratings of a user $u$ for two
+	different movies where one of the movies stars a very famous actress and the
+	other stars a less well-known set of casts. One can imagine that people may
+	pay less attention to genres if a movie stars their favorite
+	actors/actresses and more attention when they do not know much about the
+	film casts. This suggests that movie-specific biases can be beneficial for
+	modeling this kind of behavior. In particular, we add $w_m$ to the user's
+	weight vector, and instead model the interaction as $(w_u + w_m) \cdot
+	\phi(m)$.
+
+	Moreover, since part of the observed variation in the ratings is attributed
+	to similar systematic biases \cite{koren:matrix} where certain users tend to
+	rate, on average, higher (or lower) than their peers or certain movies tend
+	to be highly rated, we incorporate user- and movie-specific bias terms in
+	the rating in the final prediction so that the dot product of the movie and
+	user latent variables instead describes the deviation from the user/movie's
+	mean rating.
+
+	A true first-order approximation of these systematic biases includes a
+	global bias or weight shared by all users. However, we use a slightly
+	different approximation that folds the global bias into individual biases so
+	that learning can be done efficiently due to the ability to  partition the
+	data into independent sub-problems. This allows sequential-consistent
+	learning algorithms to run with fewer blocking operations or enable other
+	bulk or distrubuted synchronization strategies such as Distributed
+	Stochastic Gradient Descent (DSGD)~\cite{gemulla2011large}, or
+	NOMAD~\cite{yun2013nomad}.
+
 	Our final unified collaborative filtering model combines matrix factorization with a feature-based learning to address cold-start:
 	\begin{multline}
 	\min_{L, R, b_u, b_v, w_u, w_m} \frac{1}{2}\sum_{r_{um}} \left\{(L_u \cdot R_m + (w_u + w_m) \cdot \phi(m) + b_u + b_m - r_{um})^2\right\}\\ + \frac{\lambda_u}{2}\|L\|^2_F + \frac{\lambda_m}{2}\|R\|^2_F + \frac{\lambda_{w_u}}{2}\sum_u\|w_u\|^2_2 + \frac{\lambda_{w_m}}{2}\sum_m\|w_m\|^2_2\label{eq:main}
 	\end{multline}
-	where $L_u, R_m \in \mathbb{R}^k$ are $k$ dimensional latent features associated with user $u$ and movie $m$. $w_u,w_m \in \mathbb{R}^{dim(\phi)}$ are latent feature weights. $b_u, b_m \in \mathbb{R}$ are individual and movie-specific biases for the rating $r_{um}$. $\phi(u, m)$ is a feature containing movie genres and user-specified tags. 
-	\section{Learning}
-	We use stochastic gradient descent to optimize Equation $\ref{eq:main}$. The update equations for the latent variables given a rating $r_{um}$ are:
+
+	where $L_u, R_m \in \mathbb{R}^k$ are $k$ dimensional latent features associated with user $u$ and movie $m$. $w_u,w_m \in \mathbb{R}^{dim(\phi)}$ are latent feature weights. $b_u, b_m \in \mathbb{R}$ are individual and movie-specific biases for the rating $r_{um}$. $\phi(u, m)$ is a feature containing movie genres and user-specified tags.
+
+\section{Learning}
+
+  \textbf{Update Equation.}   We use stochastic gradient descent to optimize
+Equation $\ref{eq:main}$. The update equations for the latent variables given
+a rating $r_{um}$ are:
+
 	\begin{align}
-	L_u^{i+1} &= L_u^{i} - \eta^t ( \epsilon_{um} R_m  + \lambda_u L_u)\\
-	R_m^{i+1} &= R_m^{i} - \eta^t ( \epsilon_{um} L_u  + \lambda_u R_m)\\
-	w_u^{i+1} &= w_u^{i} - \eta^t ( \epsilon_{um} \phi(m) + \lambda_{w_u} w_u)\\
-	w_m^{i+1} &= w_m^{i} - \eta^t ( \epsilon_{um} \phi(m) + \lambda_{w_m} w_m)\\
-	b_u^{i+1} &= b_u^{i} - \eta^t \epsilon_{um}\\
-	b_m^{i+1} &= b_m^{i} - \eta^t \epsilon_{um}\\
-	\epsilon_{um} &= L_u \cdot R_m + (w_u + w_m) \cdot \phi(m) + b_u + b_m - r_{um}
+	L_u^{i+1} &= L_u^{i} - \eta ( \epsilon_{um} R_m  + \lambda_u L_u^i)\\
+	R_m^{i+1} &= R_m^{i} - \eta ( \epsilon_{um} L_u  + \lambda_u R_m^i)\\
+	w_u^{i+1} &= w_u^{i} - \eta ( \epsilon_{um} \phi(m) + \lambda_{w_u} w_u^i)\\
+	w_m^{i+1} &= w_m^{i} - \eta ( \epsilon_{um} \phi(m) + \lambda_{w_m} w_m^i)\\
+	b_u^{i+1} &= b_u^{i} - \eta \epsilon_{um}\\
+	b_m^{i+1} &= b_m^{i} - \eta \epsilon_{um}
 	\end{align}
-	where $\eta^t$ is the learning rate and $\eta^{t+1} \leftarrow c \cdot \eta^t$ where $0 < c < 1$.
-	\section{Implementations}
-	We implement SGD using GraphLab Create and also a non-locking, stochatic, multi-machine algorithm for asynchronous and decentralized matrix completion (NOMAD) \cite{yun2013nomad} for comparison.
+
+	where
+
+	\begin{align}
+		\epsilon_{um} &= L_u \cdot R_m + (w_u + w_m) \cdot \phi(m) + b_u + b_m - r_{um}
+	\end{align}
+
+and $\eta$ is the learning rate.
+
+  \textbf{Stopping criteria.}   We iterate on the stochastic gradient descent
+for a maximum of 30 rounds (20 rounds for the validation phase--due to
+computing limitation)   or if the changes in rmse falls below 0.005.
+
+\section{Parallelization Schema}
+
 	\subsection{GraphLab}
+
+	We use graph lab
+
 	\subsection{NOMAD}
-	\section{Experiments}
-	
+
+\section{Experiments}
+
 	$\eta=0.05$
-	
+
+	\subsection{Performance: Graphlab vs NOMAD}
+
+	We spend equal amount of time optimizing both parallelization scheme.
+
 	\subsection{Experimenting with $D_n$}
-	
+
+	- grid parameter
+	- plot rmse validation across parameter
+	- report final rmse test with two algorithm -- bar chart
+
 	\subsection{Experimenting with $D_{cs}$}
-	
-	
+
+
 	\section{Conclusion}
-	
-	
+
+
 	\bibliographystyle{abbrv}
 	\bibliography{paper_supasorn_kanitw}{}
 \end{document}
