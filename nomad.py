@@ -12,6 +12,8 @@ import multiprocessing as mp
 import ctypes
 import random
 import gflags
+import os
+import copy
 
 FLAGS = gflags.FLAGS
 #gflags.DEFINE_string('train', 'netflix_mm_10000_1000', 'Training File')
@@ -21,24 +23,46 @@ gflags.DEFINE_string('test', 'ratings_debug_test', 'Testing File')
 gflags.DEFINE_string('movie', 'movies', 'Testing File')
 gflags.DEFINE_integer('rank', 10, 'Matrix Rank')
 gflags.DEFINE_float('lamb', 0.1, 'Lambda')
+gflags.DEFINE_float('lambw', 0.1, 'Lambda')
 gflags.DEFINE_float('eta', 0.01, 'Learning Rate')
 gflags.DEFINE_integer('maxit', 50, 'Maximum Number of Iterations')
 gflags.DEFINE_integer('rmseint', 5, 'RMSE Computation Interval')
 gflags.DEFINE_integer('cores', -1, 'CPU cores')
+gflags.DEFINE_bool("unified", False, 'unified')
 
 
 def RMSEWorker(x):
-    global userOffset, movieOffset, mp_arr, latentShape
+    global userOffset, movieOffset, mp_arr, mp_w, mp_b, latentShape, weightShape, biasShape, movies
+
+    #movies = io.mmread("data/" + FLAGS.movie).tocsr()
+
     r0, c0, data = x
     latent = np.frombuffer(mp_arr.get_obj()).reshape(latentShape)
+    if FLAGS.unified:
+        weights = np.frombuffer(mp_w.get_obj()).reshape(weightShape)
+        biases = np.frombuffer(mp_b.get_obj()).reshape(biasShape)
 
     cx = data.tocoo() 
     err = 0
     for user,movie,rating in itertools.izip(cx.row, cx.col, cx.data):
         try:
-            vMovie = latent[movie + c0 + movieOffset]
-            vUser = latent[user + r0 + userOffset]
-            err += (vUser.dot(vMovie) - rating) ** 2
+            mid = c0 + movie + movieOffset
+            uid = r0 + user + userOffset
+            vMovie = latent[mid]
+            vUser = latent[uid]
+            pred = vUser.dot(vMovie)
+            if FLAGS.unified: 
+                wMovie = weights[mid]
+                wUser = weights[uid]
+                bMovie = biases[mid] 
+                bUser = biases[uid]
+                pred += bMovie + bUser 
+
+                mov = movies[c0 + movie]
+                for i, fea in itertools.izip(mov.indices, mov.data):
+                    pred += (wMovie[i] + wUser[i]) * fea
+
+            err += (pred - rating) ** 2
         except (KeyboardInterrupt, SystemExit):
             break
     return err
@@ -62,6 +86,7 @@ def rowSlice(data, cores):
         slices[i] = (i, splitRow[i], datacsr[splitRow[i]:splitRow[i+1],:].tocsc())
 
     return slices
+
 
 def slice(data, cores):
     size = data.shape
@@ -138,30 +163,61 @@ def SGD(data, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
 
 
 def updateNOMAD(x):
-    global userOffset, movieOffset, mp_arr, mp_w, latentShape, weightShape, eta, lambduh, counte, qsize
+    global userOffset, movieOffset, mp_arr, mp_w, mp_b, latentShape, weightShape, biasShape, eta, lambduh, lambduh_w, counter, qsize, movies
+
+    #movies = io.mmread("data/" + FLAGS.movie).tocsr()
+
     i, r0, data, qs = x
     latent = np.frombuffer(mp_arr.get_obj()).reshape(latentShape)
     weights = np.frombuffer(mp_w.get_obj()).reshape(weightShape)
+    biases = np.frombuffer(mp_b.get_obj()).reshape(biasShape)
 
     while True:
         while not qs[i].empty():
             col = qs[i].get()
             column = data[:, col[0]:col[1]].tocoo()
             for user, movie, rating in itertools.izip(column.row, column.col, column.data):
-                vMovie = latent[col[0] + movie + movieOffset]
-                vUser = latent[user + r0 + userOffset] 
+                #print user, movie
+                mid = col[0] + movie + movieOffset
+                uid = user + r0 + userOffset
+                vMovie = latent[mid]
+                vUser = latent[uid] 
                 vUserTmp = vUser.copy()
-                
-                e = vUser.dot(vMovie) - rating
                 c1 = (1 - eta * lambduh)
+
+                e = vUser.dot(vMovie)
+                if FLAGS.unified:
+                    wMovie = weights[mid]
+                    wUser = weights[uid]
+                    bMovie = biases[mid] 
+                    bUser = biases[uid]
+
+                    e += bMovie + bUser
+                    mov = movies[col[0] + movie]
+                    for i, fea in itertools.izip(mov.indices, mov.data):
+                        e += (wMovie[i] + wUser[i]) * fea
+
+                e -= rating
                 
                 vUser[:] = c1 * vUser - eta * e * vMovie
                 vMovie[:] = c1 * vMovie - eta * e * vUserTmp
+                
+                if FLAGS.unified:
+                    c2 = (1 - eta * lambduh_w)
+                    wMovie[:] = c2 * wMovie
+                    wUser[:] = c2 * wUser
+
+                    for i, fea in itertools.izip(mov.indices, mov.data):
+                        t = eta * e * fea
+                        wMovie[i] -= t
+                        wUser[i] -= t
+
+                    bMovie[:] -= eta * e
+                    bUser[:] -= eta * e
 
             with counter.get_lock():
                 counter.value += 1
 
-            #nex = np.random.randint(0, len(qs))
             nex = np.argmin(qsize)
             qs[nex].put(col)
 
@@ -171,11 +227,13 @@ def updateNOMAD(x):
 
     
 
-def SGDNOMAD(data, movie, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
-    global latentShape, weightShape, userOffset, movieOffset, mp_arr, mp_w, eta, lambduh, counter, qsize
+def SGDNOMAD(data, movies_, eta_ = 0.01, lambduh_ = 0.1, lambduh_w_ = 0.1, rank = 10, maxit = 10):
+    global latentShape, weightShape, biasShape, userOffset, movieOffset, mp_arr, mp_w, mp_b, eta, lambduh, lambduh_w, counter, qsize, movies
+    movies = movies_.tocsr()
     t1 = time.time()
     eta = eta_
     lambduh = lambduh_
+    lambduh_w = lambduh_w_
     userOffset = 0
     movieOffset = data.shape[0]
    
@@ -184,9 +242,13 @@ def SGDNOMAD(data, movie, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
     mp_arr = mp.Array(ctypes.c_double, latentShape[0] * latentShape[1])
     latent = np.frombuffer(mp_arr.get_obj()).reshape(latentShape)
 
-    weightShape = (latentShape[0], movie.shape[1])
+    weightShape = (latentShape[0], movies.shape[1])
     mp_w = mp.Array(ctypes.c_double, weightShape[0] * weightShape[1])
     weights = np.frombuffer(mp_w.get_obj()).reshape(weightShape)
+
+    biasShape = (latentShape[0], 1)
+    mp_b = mp.Array(ctypes.c_double, biasShape[0] * biasShape[1])
+    biases = np.frombuffer(mp_b.get_obj()).reshape(biasShape)
 
     counter = mp.Value('i', 0)
     qsize = mp.Array('i', [0] * FLAGS.cores)
@@ -195,6 +257,7 @@ def SGDNOMAD(data, movie, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
     avgRating = data.sum() / data.nnz
     latent[:] = np.random.rand(latentShape[0], latentShape[1]) * math.sqrt(avgRating / rank / 0.25)
     weights[:] = np.zeros(weightShape)
+    biases[:] = np.zeros(biasShape)
 
     slices = slice(data, FLAGS.cores)
     rowSlices = rowSlice(data, FLAGS.cores)
@@ -225,7 +288,7 @@ def SGDNOMAD(data, movie, eta_ = 0.01, lambduh_ = 0.1, rank = 10, maxit = 10):
     #print [q.qsize() for q in queues]
     print [q for q in qsize]
     while counter.value < countPerEpoch * 300: 
-        time.sleep(5)
+        time.sleep(20)
         printLog(it, time.time() - start, 0, RMSE2(slices, data.nnz, p2))
         print counter.value
         #print sum([q.qsize() for q in queues])
@@ -244,6 +307,7 @@ def main(argv):
     except gflags.FlagsError, e:
       print '%s\\nUsage: %s ARGS\\n%s' % (e, sys.argv[0], FLAGS)
       sys.exit(1)
+    os.system("taskset -p 0xFFFFFFFF %d" % os.getpid())
 
     if FLAGS.cores == -1:
         FLAGS.cores = mp.cpu_count()
@@ -257,12 +321,15 @@ def main(argv):
 
     dataTraining = io.mmread("data/" + FLAGS.train)
     dataTesting = io.mmread("data/" + FLAGS.test)
-    movie = io.mmread("data/" + FLAGS.movie)
+    movies = io.mmread("data/" + FLAGS.movie)
     print dataTraining.shape
     print dataTesting.shape
-    print movie.shape
+    
+    print movies.shape
 
-    latent = SGDNOMAD(dataTraining, movie, FLAGS.eta, FLAGS.lamb, FLAGS.rank, FLAGS.maxit)
+
+
+    latent = SGDNOMAD(dataTraining, movies, FLAGS.eta, FLAGS.lamb, FLAGS.lambw, FLAGS.rank, FLAGS.maxit)
     #latent = SGD(dataTraining, FLAGS.eta, FLAGS.lamb, FLAGS.rank, FLAGS.maxit)
 
 
