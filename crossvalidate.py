@@ -11,4 +11,4 @@ ranks = [5, 10, 20]
 for lam in lambs:
     for lamw in lambws:
         for rank in ranks:
-            cmd("./nomad -maxit=100 -byit -method=DSGD -lambda=" + str(lam) + " -lambdaw=" + str(lamw) + " -rank=" + str(rank) + " > output/" + str(rank) + "_" + str(lam) + "_" + str(lamw) + ".txt")
+            cmd("./nomad -nounified -maxit=100 -byit -method=DSGD -lambda=" + str(lam) + " -lambdaw=" + str(lamw) + " -rank=" + str(rank) + " > output/" + str(rank) + "_" + str(lam) + "_" + str(lamw) + ".txt")
