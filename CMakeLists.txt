@@ -4,10 +4,18 @@ project(movie)
 
 FIND_PACKAGE(OpenCV REQUIRED)
 FIND_PACKAGE(Ceres 1.8 REQUIRED)
+
+IF (${CMAKE_SYSTEM_VERSION} MATCHES "3.16.0-30-generic")
+SET(EXTRA_LIBS /usr/local/lib/libgflags.a)
+SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -lpthread -pthread")
+ELSE ()
 SET(EXTRA_LIBS /projects/grail/supasornnb/local_robson/lib/libgflags.a /projects/grail/supasornnb/local_robson/lib/libf77blas.so)
 SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -lpthread -lgfortran")
-add_definitions(-fopenmp)
 link_directories(/projects/grail/supasornnb/local_robson/lib)
+ENDIF ()
+
+
+add_definitions(-fopenmp)
 include_directories(${INCLUDE_DIRECTORIES} ${CERES_INCLUDE_DIRS}) 
 add_definitions(-std=gnu++11)
 

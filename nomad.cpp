@@ -89,6 +89,7 @@ MatrixXf L, R, wu, wm;
 VectorXf bu, bm;
 
 void printParameters() {
+  printf(" Unified: %d\n", FLAGS_unified);
   printf(" Rank: %d\n", FLAGS_rank);
   printf(" Lambda LR: %f\n", FLAGS_lambda);
   printf(" Lambda W: %f\n", FLAGS_lambdaw);
@@ -316,7 +317,7 @@ vector<vector<vector<SparseMatrix> > > subRawRatings;
 int halt;
 void NOMADThread(int id) {
   while (!halt) {
-    while (!qs[id].empty()) {
+    while (!qs[id].empty() && !halt) {
       mtx[id].lock();
       int s = qs[id].front();
       qs[id].pop();
@@ -327,7 +328,13 @@ void NOMADThread(int id) {
         update(rating);
       }
 
-      int next = rand() % FLAGS_cores;
+      //int next = rand() % FLAGS_cores;
+      int next = 0;
+      for (int i = 1; i < qs.size(); i++) {
+        if (qs[i].size() < qs[next].size())
+          next = i;
+      }
+
       mtx[next].lock();
       qs[next].push(s);
       mtx[next].unlock();
@@ -423,7 +430,14 @@ int main(int argc, char** argv) {
     DSGD();
   else
     run();
-  printf("Train RMSE %f\nTest RMSE %f\n", RMSE(rawRatings), RMSE(rawRatingsTest));
+
+  double trainRMSE = RMSE(rawRatings);
+  double testRMSE = RMSE(rawRatingsTest);
+  printf("Train RMSE :%f\nTest RMSE :%f\n", trainRMSE, testRMSE);
+
+  //FILE *fo = fopen("output/crossvalidation.txt", "a"); 
+  //fprintf(fo, "%f %f %f %f %f\n", FLAGS_rank, FLAGS_lambda, FLAGS_lambdaw, trainRMSE, testRMSE);
+  //fclose(fo);
   //std::thread th1 (print_block,5000,'*');
   //std::thread th2 (print_block,5000,'$');
 

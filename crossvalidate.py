@@ -1,11 +1,8 @@
 import os
 import numpy as np
 
-if not os.path.exists("results"):
-    os.mkdir("results")
-
 def cmd(st):
-    print "cd /projects/grail/supaasorn/LinkPrediction/; " + st
+    print "cd /projects/grail/supasorn/LinkPrediction/; " + st
     #os.system(st)
     
 lambs = [0, 0.001, 0.01, 0.1, 1, 10]
