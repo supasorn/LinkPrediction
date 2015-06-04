@@ -148,10 +148,10 @@ class Transformer(object):
                 print "div %d" % i
             sg = (m[i, :ng].data ** 2).sum() ** 0.5
             if sg > 0:
-                m[i, :ng] /= sg * sqrt2
+                m[i, :ng].data /= sg * sqrt2
             st = (m[i, ng:].data ** 2).sum() ** 0.5
             if st > 0:
-                m[i, ng:] /= st * sqrt2
+                m[i, ng:].data /= st * sqrt2
         m.eliminate_zeros()
         return m
 
