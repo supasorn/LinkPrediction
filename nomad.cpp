@@ -114,6 +114,10 @@ void loadMovie() {
       movieMat = Matrix<float, Dynamic, Dynamic, RowMajor>(a, b);
     } else {
       movieMat(shuffleR[a-1], b-1) = c;
+      if (fabs(c) > 1) {
+        printf("err\n");
+        exit(0);
+      }
     }
     count++;
     if (FLAGS_lim > 0 && count > FLAGS_lim) break;
@@ -154,6 +158,7 @@ void load() {
     } else {
       rawRatings.push_back(SparseMatrix(shuffleL[a-1], shuffleR[b-1], c));
       avgRating += c;
+      if (fabs(c) > 5) exit(0);
       count++;
       //mm[b-1]++;
     }
@@ -194,6 +199,14 @@ float RMSE(vector<SparseMatrix> &ratings) {
     float e;
     if (FLAGS_unified) {
       e = L.row(rating.u).dot(R.row(rating.m)) + bu(rating.u) + bm(rating.m) + (wu.row(rating.u) + wm.row(rating.m)).dot(movieMat.row(rating.m));
+      double a = L.row(rating.u).dot(R.row(rating.m));
+      //printf("%f %f\n", L.row(rating.u).dot(L.row(rating.u)), R.row(rating.m).dot(R.row(rating.m)));
+      //if (a != a) {
+        //cout << L.row(rating.u) << endl;
+        //cout << R.row(rating.m) << endl;
+        //printf("err\n");
+        //exit(0);
+      //}
     } else {
       e = L.row(rating.u).dot(R.row(rating.m));
     }                                             
@@ -216,9 +229,29 @@ void update(SparseMatrix &rating) {
       + (wu.row(rating.u) + wm.row(rating.m)).dot(movieMat.row(rating.m));
     e -= rating.v;
 
-    auto LT = L.row(rating.u);
+    MatrixXf LT(L.row(rating.u));
     L.row(rating.u) = c1 * L.row(rating.u) - FLAGS_eta * e * R.row(rating.m);
     R.row(rating.m) = c1 * R.row(rating.m) - FLAGS_eta * e * LT;
+    float t;
+    /*
+    if ((t = L.row(rating.u).dot(L.row(rating.u))) > 900) {
+#pragma omp critical
+      printf("t = %f\n", t);
+      for (int i = 0; i < FLAGS_rank; i++) {
+        printf("%f ", L(rating.u, i));
+      }
+      printf("\n");
+      exit(0);
+    }
+    if ((t = R.row(rating.m).dot(R.row(rating.m))) > 900) {
+#pragma omp critical
+      printf("t = %f\n", t);
+      for (int i = 0; i < FLAGS_rank; i++) {
+        printf("%f ", R(rating.m, i));
+      }
+      printf("\n");
+      exit(0);
+    }*/
 
     bu(rating.u) -= FLAGS_eta * e;
     bm(rating.m) -= FLAGS_eta * e;
