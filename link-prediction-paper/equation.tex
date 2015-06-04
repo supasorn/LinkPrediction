@@ -8,8 +8,9 @@
 \usepackage{color}
 \usepackage{cite}
 \usepackage{epsfig, graphics}
+\usepackage{bm}
 
-\title{Predicting Movies Rating with Parallel Stochastic Gradient Descent}
+\title{Predicting Movie Rating with Parallel Stochastic Gradient Descent \& Hybrid Matrix Factorization}
 
 \author{
 	Kanit Wongsuphasawat, Supasorn Suwajanakorn \\
@@ -35,6 +36,7 @@
 \newcommand{\red}[1]{\textcolor{red}{#1}}
 \newcommand{\U}{U}
 \newcommand{\M}{M}
+\newcommand{\kernel}{K}
 
 \nipsfinalcopy % Uncomment for camera-ready version
 
@@ -49,6 +51,7 @@
 	Our goal is to predict movie ratings for each user based on previous ratings
 	and movie metadata including genres and user-provided tags.
 
+	\todo{finish writing intro}
 	To address cold-start problem, we formulate
 
 
@@ -76,14 +79,17 @@
 \section{Dataset \& Preprocessing}
 
 	We use the MovieLens 20M\footnote{http://grouplens.org/datasets/movielens/}
-	as our benchmark dataset.  The dataset contains over 20 million ratings for
-	27,278 movies ($n_m$) by 138,493 users ($n_u$) and has information about
-	genres of each movie, given as a set of genres associated with each
-	movie. There are 19 unique genres ($n_g$). Additionally, the dataset includes user-
-	provided tags, such as ``dark hero'', ``bollywood'', ``conspiracy theory.''
-	There are 465,564 tags with 37,896 unique tags in total. The dataset
-	excludes users and their tags who rated fewer than 20 movies. The input
-	rating matrix is sparse with only 0.5\% non-zero values.
+	as our benchmark dataset.  The dataset contains the following features
+
+	\begin{itemize}
+		\item Over 20 million ratings for 27,278 movies by 138,493 users ($n_u$).
+		0.5\% of the rating matrix $R$ has non-zero values.
+		\item Genres of each movie, given as a set of genres associated with each
+	movie. There are 19 unique genres ($n_g$).
+		\item 65,564 user-provided tags (37,896 unique tags), such as ``dark hero'', ``bollywood'',
+		``conspiracy theory''.  We remove space and symbols for each tag to remove duplicate entities.
+		\item All users included in the data have rated at least 20 movies.
+	\end{itemize}
 
 	Our model will be evaluated on both the cold-start problem and the standard
 	prediction problem (in which we predict unknown ratings for already-seen
@@ -113,52 +119,74 @@ the test set akin to the standard data set.
 
 	\subsection{Pure Matrix Factorization}
 
-	We first formulate rating prediction task as a pure matrix factorization problem.
+	We first formulate rating prediction task as a pure matrix factorization
+	problem  where $r_{um}$ is the user $u$'s rating for movie $m$ while $L_u,
+	R_m \in \mathbb{R}^k$ are $k$ dimensional latent vectors associated with
+	user $u$ and movie $m$.
 
+	The objective function is
 	\begin{align}
 	\min_{L, R} \frac{1}{2}\sum_{r_{um}} \left\{(L_u \cdot R_m - r_{um})^2\right\}
 		+ \frac{\lambda_u}{2}\|L\|^2_F + \frac{\lambda_m}{2}\|R\|^2_F \label{eq:mf}
 	\end{align}
 
+	where $\lambda_u$ and $\lambda_m$  are regularization parameters for each latent matrix.
 
 
 	\subsection{Hybrid Matrix Factorization}
 
-	In MovieLens data, each movie
-	has a set of genres and user-specified tags associated with it. This
-	implicit information is useful in scenario where we try to predict ratings
-	for unobserved movies that have similar tags to the existing ones and can be
-	used in a feature-based model to complement the prediction. We model these
-	implicit features by $\phi(m) \in \mathbb{R}^{59}$ associated with each
-	movie where the first 19 entries of $\phi(m)$ are binary indicators of
-	whether or not movie $m$ is classified as genre $g_i$ in the set of all
-	genres $G = \{g_1,\ldots, g_?\}$. The remaining 40 entries are features
-	computed with hash kernel of user- specified tags. With these features, we
-	model the interaction as a dot product $w_u \cdot \phi(m)$ where $w_u$ is a
-	weight associated with user $u$. These weight vectors generally capture the
-	importance of genres to a particular user $u$.
+	In MovieLens data, each movie $m$ has a set of genres and user-specified
+	tags. This implicit information is useful in scenario where we try to
+	predict ratings for unobserved movies that have similar tags to the existing
+	ones and can be used in a feature-based model to complement the prediction.
 
+	For each movie, we model the genres a boolean vector $\bm{g_m} \in
+	\{0,1\}^{19}$ and tags count vector $\bm{t_m} \in \mathbb{N}_0^{465,564}$ where
+	$t_m^j$ represents the number of times that movie $m$ is tagged by tag $j$.  To
+	compress the tag vector, we use hash kernel to project each
+	$\bm{t_m}$ to a 40-dimensional kernel vector $\kernel(\bm{t_m})$ using hash
+	function $h$ and $\xi$ sign hash function.
+	\begin{align}
+		\kernel_i(\bm{x}) &= \sum_{j:h(j)=i} \xi(j) \bm{x_j}
+	\end{align}
+	\begin{center}
+	where $h: X \rightarrow \{1, ..., 40\}$ and $\xi: X \rightarrow \{1,-1\}$.
+	\end{center}
+	\\
+	\\
+	We then normalize the kernel projection using $L_0$ norm.
+	\begin{align}
+		\hat{\kernel}(\bm{t_m}) = \kernel(\bm{t_m}) / \|\kernel(\bm{t_m})\|_0
+	\end{align}
 
+	After compression, we can model feature vector for each movie.
+	\begin{align}
+		\phi(m) = [\bm{g_m}\ \ \hat{\kernel}(\bm{t_m})]
+	\end{align}
 
-	\textbf{TODO:} Hash Kernel
-
-	Consider a scenario where we try to predict ratings of a user $u$ for two
-	different movies where one of the movies stars a very famous actress and the
-	other stars a less well-known set of casts. One can imagine that people may
-	pay less attention to genres if a movie stars their favorite
-	actors/actresses and more attention when they do not know much about the
-	film casts. This suggests that movie-specific biases can be beneficial for
-	modeling this kind of behavior. In particular, we add $w_m$ to the user's
-	weight vector, and instead model the interaction as $(w_u + w_m) \cdot
-	\phi(m)$.
+	With these features, we model the interaction as a dot product $w \cdot
+	\phi(m)$ where $w$ is a weight vector associated with the feature vector.
+	However, the weight might vary across different users and movies. Different
+	users might have varied preference for each movie genre and tag. For
+	example, one might prefer action movies while another might prefer dramas.
+	Similarly, different movie might have varied interaction with its own
+	feature. For example, consider a scenario where we try to predict ratings of
+	a user $u$ for two different movies where one of the movies stars a very
+	famous actress and the other stars a less well-known set of casts. One can
+	imagine that people may pay less attention to genres if a movie stars their
+	favorite actors/actresses and more attention when they do not know much
+	about the film casts. This suggests that movie-specific biases can be
+	beneficial for modeling this kind of behavior.  Thus we define the weight
+	vector $w = w_u + w_m$ where $w_u$ is a weight vector associated with user
+	$u$ and  $w_m$ is a weight vector associated with movie $m$
 
 	Moreover, since part of the observed variation in the ratings is attributed
 	to similar systematic biases \cite{koren:matrix} where certain users tend to
 	rate, on average, higher (or lower) than their peers or certain movies tend
-	to be highly rated, we incorporate user- and movie-specific bias terms in
-	the rating in the final prediction so that the dot product of the movie and
-	user latent variables instead describes the deviation from the user/movie's
-	mean rating.
+	to be highly rated, we incorporate user- and movie-specific bias terms
+	($b_u$ and $b_m$) in the rating in the final prediction so that the dot
+	product of the movie and user latent variables instead describes the
+	deviation from the user/movie's mean rating.
 
 	A true first-order approximation of these systematic biases includes a
 	global bias or weight shared by all users. However, we use a slightly
@@ -170,12 +198,21 @@ the test set akin to the standard data set.
 	Stochastic Gradient Descent (DSGD)~\cite{gemulla2011large}, or
 	NOMAD~\cite{yun2013nomad}.
 
-	Our final unified collaborative filtering model combines matrix factorization with a feature-based learning to address cold-start:
+	Our final unified collaborative filtering model combines matrix
+	factorization with a feature-based learning to address cold-start problem:
+
 	\begin{multline}
 	\min_{L, R, b_u, b_v, w_u, w_m} \frac{1}{2}\sum_{r_{um}} \left\{(L_u \cdot R_m + (w_u + w_m) \cdot \phi(m) + b_u + b_m - r_{um})^2\right\}\\ + \frac{\lambda_u}{2}\|L\|^2_F + \frac{\lambda_m}{2}\|R\|^2_F + \frac{\lambda_{w_u}}{2}\sum_u\|w_u\|^2_2 + \frac{\lambda_{w_m}}{2}\sum_m\|w_m\|^2_2\label{eq:main}
 	\end{multline}
 
-	where $L_u, R_m \in \mathbb{R}^k$ are $k$ dimensional latent features associated with user $u$ and movie $m$. $w_u,w_m \in \mathbb{R}^{dim(\phi)}$ are latent feature weights. $b_u, b_m \in \mathbb{R}$ are individual and movie-specific biases for the rating $r_{um}$. $\phi(u, m)$ is a feature containing movie genres and user-specified tags.
+	where
+	\begin{itemize}
+		\item $L_u, R_m \in \mathbb{R}^k$ are $k$ dimensional latent vectors associated with user $u$ and movie $m$.
+		\item $w_u,w_m \in \mathbb{R}^{dim(\phi)}$ are latent feature weights.
+		\item $b_u, b_m \in \mathbb{R}$ are individual and movie-specific biases for the rating $r_{um}$.
+		\item $\phi(m)$ is a feature containing movie genres and user-specified tags.
+		\item $\lambda_u$, $\lambda_m$, $\lambda_{w_u}$, and $\lambda_{w_m}$ are regularization parameters.
+	\end{itemize}
 
 \section{Learning}
 
@@ -191,9 +228,7 @@ a rating $r_{um}$ are:
 	b_u^{i+1} &= b_u^{i} - \eta \epsilon_{um}\\
 	b_m^{i+1} &= b_m^{i} - \eta \epsilon_{um}
 	\end{align}
-
 	where
-
 	\begin{align}
 		\epsilon_{um} &= L_u \cdot R_m + (w_u + w_m) \cdot \phi(m) + b_u + b_m - r_{um}
 	\end{align}
@@ -204,7 +239,7 @@ and $\eta$ is the learning rate.
 for a maximum of 30 rounds (20 rounds for the validation phase--due to
 computing limitation)   or if the changes in rmse falls below 0.005.
 
-\section{Parallelization Schema}
+\section{Parallelization Scheme}
 
 	\subsection{GraphLab}
 
