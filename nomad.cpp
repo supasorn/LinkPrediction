@@ -194,6 +194,14 @@ float RMSE(vector<SparseMatrix> &ratings) {
     float e;
     if (FLAGS_unified) {
       e = L.row(rating.u).dot(R.row(rating.m)) + bu(rating.u) + bm(rating.m) + (wu.row(rating.u) + wm.row(rating.m)).dot(movieMat.row(rating.m));
+      double a = L.row(rating.u).dot(R.row(rating.m));
+      //printf("%f %f\n", L.row(rating.u).dot(L.row(rating.u)), R.row(rating.m).dot(R.row(rating.m)));
+      //if (a != a) {
+        //cout << L.row(rating.u) << endl;
+        //cout << R.row(rating.m) << endl;
+        //printf("err\n");
+        //exit(0);
+      //}
     } else {
       e = L.row(rating.u).dot(R.row(rating.m));
     }                                             
@@ -219,6 +227,15 @@ void update(SparseMatrix &rating) {
     auto LT = L.row(rating.u);
     L.row(rating.u) = c1 * L.row(rating.u) - FLAGS_eta * e * R.row(rating.m);
     R.row(rating.m) = c1 * R.row(rating.m) - FLAGS_eta * e * LT;
+    double t;
+    if (t = L.row(rating.u).dot(L.row(rating.u)) > 900) {
+      cout << "(" << t << ")"<< L << endl;
+      exit(0);
+    }
+    if (R.row(rating.m).dot(R.row(rating.m)) > 900) {
+      cout << "(" << t << ")"<< L << endl;
+      exit(0);
+    }
 
     bu(rating.u) -= FLAGS_eta * e;
     bm(rating.m) -= FLAGS_eta * e;
