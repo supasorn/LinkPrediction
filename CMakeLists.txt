@@ -28,3 +28,6 @@ add_definitions(-D_LINUX_MAC -D_OPENCV -w)
 
 add_executable (nomad nomad.cpp)
 target_link_libraries (nomad ceres ${CERES_LIBRARY_DEPENDENCIES} ${EXTRA_LIBS})
+
+add_executable (slice slice.cpp)
+target_link_libraries (slice ceres ${CERES_LIBRARY_DEPENDENCIES} ${EXTRA_LIBS})
