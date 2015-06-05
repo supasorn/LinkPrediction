@@ -314,9 +314,9 @@ We spend equal amount of time optimizing both parallelization scheme.
 \subsection{Hyperparameter Optimization}
 
 We run a grid search to optimize hyperparameters for both pure and hybrid
-matrix factorization. \todo{We search over $k \in \{5, 10, 20\}$, $\lambda \in \{0,
-0.001, 0.01, 0.1, 1, 10\}$ for both formulation and $\lambda_m \in \{0,
-0.001, 0.01, 0.1, 1, 10\}$ for the hybrid model.}
+matrix factorization. We search over $k \in \{5, 10, 20\}$, $\lambda \in \{
+0.001, 0.01, 0.1, 1, 10\}$ for both formulation and $\lambda_m \in \{
+0.001, 0.01, 0.1, 1, 10\}$ for the hybrid model.
 
 Due to resource limitation, we search for parameter using a subset of 1 million
 
@@ -330,7 +330,7 @@ $k=20$, $\lambda=0.1$ and $\lambda_w=1$ (for the hybrid model).
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=3.5in]{grid-search.png}
+\includegraphics[width=4.2in]{figures/grid}
 \caption{\label{fig:gridsearch} Heatmap Table showing $rmse_{validate}$ from
 running grid search for different parameters $k$, $\lambda$, $\lambda_m$ for
 both hybrid and pure MF using 1M subset of the training data.  Lower $rmse$
@@ -360,8 +360,7 @@ In our earlier implementation, we did not normalize ratings and normalize
 \section{Conclusion}
 
 \section{Acknowledgement}
-We use figure from \cite{yun2013nomad} for DSGD and NOMAD algorithm descriptions.
-
+We use figures from \cite{yun2013nomad} for DSGD and NOMAD algorithm descriptions.
 
 \bibliographystyle{abbrv}
 \bibliography{paper_supasorn_kanitw}{}
