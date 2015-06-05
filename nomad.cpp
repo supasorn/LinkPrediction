@@ -18,7 +18,6 @@ DEFINE_string(movie, "data/movies.mtx", "a");
 DEFINE_string(data, "data/ratings_debug_train.mtx", "a");
 DEFINE_string(datatest, "data/ratings_debug_test.mtx", "a");
 DEFINE_int32(rank, 5, "a");
-DEFINE_int32(lim, 0, "a");
 DEFINE_int32(maxit, 20, "a");
 DEFINE_int32(cores, 0, "a");
 DEFINE_int32(interval, 5, "a");
@@ -65,12 +64,6 @@ void tocaList() {
 }
 
 
-//struct Movie {
-  //int id;
-  //float v;
-  //Movie(int id, float v) : id(id), v(v) {}
-  //Movie() {}
-//};
 MatrixXf movieMat;
 vector<int> shuffleL, shuffleR;
 
@@ -120,10 +113,13 @@ void loadMovie() {
       }
     }
     count++;
-    if (FLAGS_lim > 0 && count > FLAGS_lim) break;
   }
   fclose(fi);
   printf("Reading Movie Tags .. Done\n");
+}
+
+void printLog(int it, double time, float rmse) {
+  printf("%d, %lf %f\n", it, rmse, time);
 }
 
 void shuffle() {
@@ -143,11 +139,10 @@ void load() {
   FILE *fi = fopen(FLAGS_data.c_str(), "r");
   char st[200];
   int count = 0;
-  //map<int, int> mm;
+  int a, b;
+  float c;
   while (fgets(st, 200, fi) != NULL) {
     if (st[0] == '%') continue;
-    int a, b;
-    float c;
     sscanf(st, " %d %d %f", &a, &b, &c);
     if (nUser == 0) {
       nUser = a;
@@ -158,11 +153,8 @@ void load() {
     } else {
       rawRatings.push_back(SparseMatrix(shuffleL[a-1], shuffleR[b-1], c));
       avgRating += c;
-      if (fabs(c) > 5) exit(0);
       count++;
-      //mm[b-1]++;
     }
-    if (FLAGS_lim > 0 && count > FLAGS_lim) break;
   }
   avgRating /= count;
   printf("Reading Training Set .. Done\n");
@@ -171,14 +163,11 @@ void load() {
   count = 0;
   while (fgets(st, 200, fi) != NULL) {
     if (st[0] == '%') continue;
-    int a, b;
-    float c;
     sscanf(st, " %d %d %f", &a, &b, &c);
     if (count > 0) {
       rawRatingsTest.push_back(SparseMatrix(shuffleL[a-1], shuffleR[b-1], c));
     }
     count++;
-    if (FLAGS_lim > 0 && count > FLAGS_lim) break;
   }
   fclose(fi);
   printf("Reading Test Set .. Done\n");
@@ -200,7 +189,6 @@ float RMSE(vector<SparseMatrix> &ratings) {
     if (FLAGS_unified) {
       e = L.row(rating.u).dot(R.row(rating.m)) + bu(rating.u) + bm(rating.m) + (wu.row(rating.u) + wm.row(rating.m)).dot(movieMat.row(rating.m));
       double a = L.row(rating.u).dot(R.row(rating.m));
-      //printf("%f %f\n", L.row(rating.u).dot(L.row(rating.u)), R.row(rating.m).dot(R.row(rating.m)));
       //if (a != a) {
         //cout << L.row(rating.u) << endl;
         //cout << R.row(rating.m) << endl;
@@ -318,7 +306,7 @@ void DSGD() {
     //}
   //} 
 
-  printf("[0] RMSE %f\n", RMSE(rawRatings));
+  printLog(0, 0, RMSE(rawRatings));
   int interval = FLAGS_interval;
   double start0 = timestamp();
   for (int it = 0; it < FLAGS_maxit; it++) {
@@ -331,13 +319,13 @@ void DSGD() {
         }
       } 
     }
+
     if (FLAGS_byit) {
-      //printf("[%d] RMSE %f:%f [%fs, %fs]\n", it+1, RMSE(rawRatings), RMSE(rawRatingsTest), timestamp() - start1, timestamp() - start0);
-      printf("[%d] RMSE %f [%fs]\n", it+1, RMSE(rawRatings), timestamp() - start0);
+      printLog(it+1, timestamp() - start0, RMSE(rawRatings));
     } else {
       if (timestamp() - start0 > interval) {
         interval += FLAGS_interval;
-        printf("[%d] RMSE %f [%fs]\n", it+1, RMSE(rawRatings), timestamp() - start0);
+        printLog(it+1, timestamp() - start0, RMSE(rawRatings));
       }
     }
   }
@@ -394,8 +382,7 @@ void NOMAD() {
     qs[rand() % FLAGS_cores].push(i);
   }
 
-  printf("[0] RMSE %f\n", RMSE(rawRatings));
-
+  printLog(0, 0, RMSE(rawRatings));
   vector<thread> threads;
   for (int i = 0; i < FLAGS_cores; i++) {
     threads.push_back(thread(NOMADThread, i));
@@ -405,7 +392,7 @@ void NOMAD() {
   for (int i = 0; i < FLAGS_maxit; i++) {
     if (timestamp() - start0 > interval) {
       interval += FLAGS_interval;
-      printf("[%d] RMSE %f [%fs]\n", i+1, RMSE(rawRatings), timestamp() - start0);
+      printLog(i+1, timestamp() - start0, RMSE(rawRatings));
     }
     sleep(1);
   }
@@ -425,26 +412,6 @@ void NOMAD() {
 
 }
 
-void bench() {
-  Matrix<float,Dynamic,Dynamic,RowMajor> A(10000, 10000);
-  tic("a");
-  for (int i = 0; i < 1000; i++) {
-    int a = rand()%1000;
-    int b = rand()%1000;
-    A.row(a) = A.row(a) * A.row(a).dot(A.row(b));
-  }
-  toc("a");
-  tic("b");
-  for (int i = 0; i < 1000; i++) {
-    int a = rand()%1000;
-    int b = rand()%1000;
-    A.col(a) = A.col(a) * A.col(a).dot(A.col(b));
-  }
-  toc("a");
-  exit(0);
-}
-
-
 int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, false);
   google::InitGoogleLogging(argv[0]);
@@ -452,8 +419,10 @@ int main(int argc, char** argv) {
   if (FLAGS_cores == 0) {
     FLAGS_cores = std::thread::hardware_concurrency();
   }
+
   srand(0);
   load();
+
   init();
   printParameters();
 
@@ -467,15 +436,6 @@ int main(int argc, char** argv) {
   double trainRMSE = RMSE(rawRatings);
   double testRMSE = RMSE(rawRatingsTest);
   printf("Train RMSE :%f\nTest RMSE :%f\n", trainRMSE, testRMSE);
-
-  //FILE *fo = fopen("output/crossvalidation.txt", "a"); 
-  //fprintf(fo, "%f %f %f %f %f\n", FLAGS_rank, FLAGS_lambda, FLAGS_lambdaw, trainRMSE, testRMSE);
-  //fclose(fo);
-  //std::thread th1 (print_block,5000,'*');
-  //std::thread th2 (print_block,5000,'$');
-
-  //th1.join();
-  //th2.join();
 
   return 0;
 }
