@@ -33,7 +33,7 @@
 *.fls
 data/*
 *.mtx
-*.pdf
+link-prediction-paper/*.pdf
 .ipynb_checkpoints
 state
 output
