@@ -60,9 +60,9 @@ factorization~\cite{koren:matrix} that addresses the following problems:
 \textbf{1) Run-time Performance.}
 We implemented three parallelization techniques that enable fast
 learning algorithm:
-(a) GraphLab Create with edge-centric update
-(b) Distributed Stochastic Gradient Descent (DSGD)
-(c) Non-locking Stochastic Multi-machine Algorithm for Asynchronous and Decentralized Matrix Completion (NOMAD) with dynamic load balancing.
+(a) Distributed Stochastic Gradient Descent (DSGD),
+(b) Non-locking Stochastic Multi-machine Algorithm for Asynchronous and Decentralized Matrix Completion (NOMAD) with dynamic load balancing, and
+(c) GraphLab Create with edge-centric update.
 We compared performance of these techniques and run the algorithm with
 \todo{NOMAD?}, which is the most performing algorithm.
 
@@ -84,10 +84,11 @@ as our benchmark dataset.  The dataset contains the following features:
 
 \begin{itemize}[leftmargin=15pt]
 	\item Over 20 million ratings for 27,278 movies ($n_m$) by 138,493 users ($n_u$).
-	0.5\% of the rating matrix $R$ has non-zero values.  The original ratings ranges from 0.5 to 5.  We normalize the rating by setting each rating to
-\begin{align}
-	 R = \frac{R_{original} - 0.5}{4.5}
-\end{align}
+	0.5\% of the rating matrix $R$ has non-zero values.  The ratings ranges from 0.5 to 5.
+% 	We normalize the rating by setting each rating to
+% \begin{align}
+% 	 R = \frac{R_{original} - 0.5}{4.5}
+% \end{align}
 
 	\item Genres of each movie, given as a set of genres associated with each
 movie. There are 19 unique genres ($n_g$).
@@ -248,23 +249,26 @@ and $\eta$ is the learning rate.
 for a maximum of 30 rounds (20 rounds for the validation phase--due to
 computing limitation)   or if the changes in rmse falls below 0.005.
 
-
-
 \section{Parallelization Scheme and Implementation}
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{figures/dsgdnomad}
+\caption{\label{fig:dsgdnomad} Illustration of DSGD and NOMAD algorithms.  (Modified from~\cite{yun2013nomad})}
+\end{figure}
+
+\subsection{Distributed Stochastic Gradient Descent (DSGD)}
+
+\subsection{Non-locking Stochastic Multi-machine Algorithm for Asynchronous and Decentralized Matrix Completion (NOMAD)}
 
 \subsection{GraphLab}
 
-We use GraphLab Create \todo{version}
+We implement another version of parallel stochastic gradient descent using GraphLab Create by using edge-centric update.
 
-\subsection{NOMAD}
-
-\subsection{DSGD}
-
-
+\todo{define locking}.
 
 \section{Experiments}
 
-$\eta=0.05$
+In all of our experiments,  we initialize the latent matrices $U$ and $M$ by drawing a sample from a uniform distribution in the range $\left[0,\sqrt{\frac{\bar{r}}{0.25k}}\right)$ for each entry in the matrices where $\bar{r}$ is the average rating and $k$ is the matrix rank. Thus, $E[\hat{r}_{um}^0] = \bar{r}$..
 
 \subsection{Performance}
 
@@ -273,9 +277,9 @@ We spend equal amount of time optimizing both parallelization scheme.
 \subsection{Hyperparameter Optimization}
 
 We run a grid search to optimize hyperparameters for both pure and hybrid
-matrix factorization. We search over $k \in \{5, 10, 20\}$, $\lambda \in \{0,
+matrix factorization. \todo{We search over $k \in \{5, 10, 20\}$, $\lambda \in \{0,
 0.001, 0.01, 0.1, 1, 10\}$ for both formulation and $\lambda_m \in \{0,
-0.001, 0.01, 0.1, 1, 10\}$ for the hybrid model.
+0.001, 0.01, 0.1, 1, 10\}$ for the hybrid model.}
 
 Due to resource limitation, we search for parameter using a subset of 1 million
 
@@ -311,6 +315,8 @@ for each formulation are highlighted with a bold text and thick border.}
 
 
 \section{Lessons Learned}
+
+Also, implementing DSGD and NOMAD in C++ leads to roughly \todo{XXXX times} speed-ups.
 
 In our earlier implementation, we did not normalize ratings and normalize
 
