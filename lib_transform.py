@@ -169,6 +169,32 @@ def sample_split(n, n_test=None, n_validate=None):
     return train_ids, validate_ids, test_ids
 
 
+def gen_cs(ratings_matrix, r_test=0.2, r_validate=0, name='ratings_cs'):
+    (_, nm) = ratings_matrix.shape
+    n_test = int(r_test * nm)
+    n_validate = int(r_validate * nm)
+
+    ratings_matrix_csc = ratings_matrix.tocsc()
+
+    samples = sample(range(nm), n_test + n_validate)
+    test_movie_ids = samples[0:n_test]
+    validate_movie_ids = samples[n_test:]
+    train_movie_ids = list(set(range(nm)) - set(samples))
+
+    train_ratings_mtx = csc_cols_to_zero(
+        ratings_matrix_csc.copy(), test_movie_ids + validate_movie_ids)
+    test_ratings_mtx = csc_cols_to_zero(
+        ratings_matrix_csc.copy(), train_movie_ids + validate_movie_ids)
+    if n_validate > 0:
+        valid_ratings_tmx = csc_cols_to_zero(
+            ratings_matrix_csc.copy(), train_movie_ids + test_movie_ids)
+        sio.mmwrite('data/%s_validate.mtx' % name, valid_ratings_tmx)
+
+    sio.mmwrite('data/%s_train.mtx' % name, train_ratings_mtx)
+    sio.mmwrite('data/%s_test.mtx' % name, test_ratings_mtx)
+    return train_ratings_mtx, valid_ratings_tmx, test_ratings_mtx
+
+
 def get_debug(data):
     full_train = sio.mmread('data/%s_train.mtx' % data).tocsr()
     (nu, nm) = full_train.shape
@@ -211,6 +237,7 @@ def csc_cols_to_zero(csc, cols):
     for col in cols:
         csc_col_to_zero(csc, col)
     csc.eliminate_zeros()
+    return csc
 
 
 def get_sf_from_coo(coo, save_to):
