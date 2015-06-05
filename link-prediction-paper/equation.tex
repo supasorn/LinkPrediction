@@ -11,6 +11,10 @@
 \usepackage{bm}
 \usepackage{enumitem}
 
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+
 \title{Predicting Movie Rating with Parallel Stochastic Gradient Descent \& Hybrid Matrix Factorization}
 
 \author{
@@ -250,15 +254,48 @@ for a maximum of 30 rounds (20 rounds for the validation phase--due to
 computing limitation)   or if the changes in rmse falls below 0.005.
 
 \section{Parallelization Scheme and Implementation}
-\begin{figure}[ht]
-\centering
-\includegraphics[width=\linewidth]{figures/dsgdnomad}
-\caption{\label{fig:dsgdnomad} Illustration of DSGD and NOMAD algorithms.  (Modified from~\cite{yun2013nomad})}
-\end{figure}
+
+% \begin{figure}[ht]
+% \centering
+% \includegraphics[width=\linewidth]{figures/dsgdnomad}
+% \caption{\label{fig:dsgdnomad} Illustration of DSGD and NOMAD algorithms.  (Modified from~\cite{yun2013nomad})}
+% \end{figure}
 
 \subsection{Distributed Stochastic Gradient Descent (DSGD)}
 
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.5\linewidth]{figures/dsgd}
+\caption{\label{fig:dsgdnomad} Illustration of DSGD algorithms with 4 workers (from ~\cite{yun2013nomad}).
+$W$ and $H$ are initially partitioned into 4 blocks as shown on the left. Each worker runs SGD on its active area as indicated. After each
+worker completes processing data points in its own active
+area, the columns of item parameters $H^T$ are exchanged
+randomly, and the active area changes. This process is repeated
+for each iteration.}
+
+\end{figure}
+
+\todo{We first implement a variant of DSGD\cite{gemulla2011large}}
+
 \subsection{Non-locking Stochastic Multi-machine Algorithm for Asynchronous and Decentralized Matrix Completion (NOMAD)}
+
+\begin{figure}[hb]
+  \centering
+  \begin{subfigure}[b]{0.5\textwidth}
+    \includegraphics[width=\textwidth]{figures/nomad-alg}
+    \vspace{15pt}
+  \end{subfigure}%
+  ~ %add desired spacing between images, e. g. ~, \quad, \qquad, \hfill etc.
+    %(or a blank line to force the subfigure onto a new line)
+  \begin{subfigure}[b]{0.5\textwidth}
+    \includegraphics[width=\textwidth]{figures/nomad}
+    \label{fig:nomad}
+  \end{subfigure}
+  \vspace{-20pt}
+  \caption{Pseudo-code (left) and Illustration (right) NOMAD algorithm (from ~\cite{yun2013nomad}).}
+\end{figure}
+
+\todo{supasorn please write}
 
 \subsection{GraphLab}
 
@@ -321,6 +358,9 @@ Also, implementing DSGD and NOMAD in C++ leads to roughly \todo{XXXX times} spee
 In our earlier implementation, we did not normalize ratings and normalize
 
 \section{Conclusion}
+
+\section{Acknowledgement}
+We use figure from \cite{yun2013nomad} for DSGD and NOMAD algorithm descriptions.
 
 
 \bibliographystyle{abbrv}
