@@ -152,6 +152,8 @@ class Transformer(object):
             if i % 3000 == 0:
                 print "div %d" % i, (m[i].data ** 2).sum()
         m.eliminate_zeros()
+        if save_to is not None:
+            sio.mmwrite(save_to, m)
         return m
 
 
@@ -209,6 +211,14 @@ def csc_cols_to_zero(csc, cols):
     for col in cols:
         csc_col_to_zero(csc, col)
     csc.eliminate_zeros()
+
+
+def get_sf_from_coo(coo, save_to):
+    sf = SFrame({'userId': coo.row, 'movieId': coo.col, 'rating': coo.data})
+    if save_to is not None:
+        print "saving sframe to", save_to
+        sf.save(save_to)
+    return sf
 
 
 def normal_split(nr, T):
