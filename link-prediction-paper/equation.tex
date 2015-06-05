@@ -72,7 +72,7 @@ A common problem for matrix factorization-based method for collaborative
 filtering is the inability to address unseen items (movies in our case) or
 users.  We address this problem by using a hybrid model combining matrix
 factorization and content-based filtering techniques using metadata as
-features. To address high dimensionality, we compress tags' feature vectors
+features. To address high dimensionality, we compress tags feature vectors
 using hash-kernel techniques~\cite{shi:hashkernels}.  We compare results
 from the hybrid model with pure matrix factorization.  The results show that \todo{summarize result here}
 
@@ -160,13 +160,13 @@ function $h$ and $\xi$ sign hash function.
 where $h: X \rightarrow \{1, ..., 40\}$ and $\xi: X \rightarrow \{1,-1\}$.
 \end{center}
 
-We then normalize the genre membership vector and kernel projection using $L_2$ norm.
+We then normalize the genres membership vector and the tags kernel vector using $L_2$ norm.
 \begin{align}
 	\bm{\hat{g}_m} = \frac{\bm{\hat{g}_m}}{\normv{\bm{\hat{g}_m}}},
 	\hat{\kernel}(\bm{t_m}) = \frac{\kernel(\bm{t_m})}{\|\kernel(\bm{t_m})\|_2}
 \end{align}
 
-After compression, we can model movie feature vector for each movie $\phi(m)$ as normalized concatenation of the genres membership vector and the tags kernel vector. As both vectors have $L_2$ norm of $1$, we can normalize the concatenation by dividing by square root of
+After compression, we can model movie feature vector for each movie $\phi(m)$ as normalized concatenation of the genres membership vector and the tags kernel vector. As both vectors have $L_2$ norm of $1$, we can normalize the concatenation by dividing by square root of 2.
 \begin{align}
 	\phi(m) = \frac{1}{\sqrt{2}} [\bm{\hat{g}_m}\ \ \hat{\kernel}(\bm{t_m})]
 \end{align}
