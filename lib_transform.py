@@ -1,6 +1,6 @@
 import scipy.io as sio
 import pandas as pd
-from scipy.sparse import dok_matrix
+from scipy.sparse import dok_matrix, coo_matrix
 from random import sample
 import random
 random.seed(123)
@@ -142,14 +142,15 @@ class Transformer(object):
 
         sqrt2 = 2 ** 0.5
         for i in xrange(nm):
-            if i % 10000 == 0:
-                print "div %d" % i
             sg = (m[i, :ng].data ** 2).sum() ** 0.5
             if sg > 0:
                 m[i, :ng] /= sg * sqrt2
             st = (m[i, ng:].data ** 2).sum() ** 0.5
             if st > 0:
                 m[i, ng:] /= st * sqrt2
+
+            if i % 3000 == 0:
+                print "div %d" % i, (m[i].data ** 2).sum()
         m.eliminate_zeros()
         return m
 
@@ -165,7 +166,39 @@ def sample_split(n, n_test=None, n_validate=None):
 
     return train_ids, validate_ids, test_ids
 
-# def get_debug_rows_cols(M):
+
+def get_debug(data):
+    full_train = sio.mmread('data/%s_train.mtx' % data).tocsr()
+    (nu, nm) = full_train.shape
+
+    print 'sampling'
+    debug_mids = sample(range(nm), nm / 5)
+    debug_uids = sample(range(nu), nu / 5)
+
+    debug = full_train[debug_uids][:, debug_mids].tocoo()
+    nr = debug.nnz
+    train_ids, _, test_ids = sample_split(nr)
+
+    # build matrix from given indices
+    print 'writing debug_train'
+    debug_train = coo_matrix(
+        (debug.data[train_ids], (debug.row[train_ids], debug.col[train_ids])), debug.shape)
+    sio.mmwrite('data/%s_debug_train.mtx' % data, debug_train)
+    print 'writing debug_test'
+    debug_test = coo_matrix(
+        (debug.data[test_ids], (debug.row[test_ids], debug.col[test_ids])), debug.shape)
+    sio.mmwrite('data/%s_debug_test.mtx' % data, debug_test)
+
+    # build movie mtx from debug_mids
+    print 'movie debug'
+    movies = sio.mmread('data/movies.mtx').tocsr()
+    movies_debug = movies[debug_mids]
+    sio.mmwrite('data/movies_%s_debug.mtx' % data, movies_debug)
+
+    return debug, debug_train, debug_test, movies_debug
+
+
+# get_debug('ratings')
 
 
 def csc_col_to_zero(csc, col):
@@ -184,3 +217,12 @@ def normal_split(nr, T):
     T.save_ratings_splits_sf(train_ids, valid_ids, test_ids, 'ratings_normal')
     return train_ids, valid_ids, test_ids
 #     save_ratinenres = movies['genres'].map(lambda x: set(x.split('|')))
+#
+# def two_round_split():
+#     train_ids, _, test_ids = sample_split(nr)
+#     debug_train_ids, _, debug_valid_ids = debug_split(train_ids)
+#     save_ratings_splits_sf(ratings, debug_train_ids, [], debug_valid_ids, 'ratings_debug')
+#     save_ratings_splits_sf(ratings, train_ids, [], test_ids, 'ratings')
+#     save_ratings_splits_mtx(ratings, debug_train_ids, [], debug_valid_ids, 'ratings_debug')
+#     save_ratings_splits_mtx(ratings, train_ids, [], test_ids, 'ratings')
+#     return train_ids, test_ids, debug_train_ids, debug_valid_ids
