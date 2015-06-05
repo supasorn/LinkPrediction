@@ -74,6 +74,8 @@ void tocaList() {
 MatrixXf movieMat;
 vector<int> shuffleL, shuffleR;
 
+
+
 struct SparseMatrix {
   int u, m;
   float v;
@@ -82,7 +84,7 @@ struct SparseMatrix {
 };
 vector<SparseMatrix> rawRatings;
 vector<SparseMatrix> rawRatingsTest;
-int nUser, nMovie, nRating;
+int nUser, nMovie, nRating, j;
 float avgRating;
 
 MatrixXf L, R, wu, wm;
@@ -156,6 +158,9 @@ void load() {
       shuffle();
       printf("User: %d Movies: %d Ratings: %d\n", nUser, nMovie, nRating);
     } else {
+      if (c > 5 || c < 0) printf("WRONG INPUT RATING!!");
+      c = (c-0.5)/4.5;
+
       rawRatings.push_back(SparseMatrix(shuffleL[a-1], shuffleR[b-1], c));
       avgRating += c;
       if (fabs(c) > 5) exit(0);
@@ -220,14 +225,35 @@ float RMSE(vector<SparseMatrix> &ratings) {
   return sqrt(se / count); 
 }
 
+float rn(MatrixXf &m, int r) {
+  return sqrt(m.row(r).dot(m.row(r)));
+}
+
+float vn(VectorXf &v) {
+  return sqrt(v.dot(v));
+}
+
 void update(SparseMatrix &rating) {
   if (FLAGS_unified) {
     float c1 = (1 - FLAGS_eta * FLAGS_lambda);
     float c2 = (1 - FLAGS_eta * FLAGS_lambdaw);
-    float e = L.row(rating.u).dot(R.row(rating.m)) 
-      + bu(rating.u) + bm(rating.m)
+    float LuRm = L.row(rating.u).dot(R.row(rating.m));
+    float e = LuRm + bu(rating.u) + bm(rating.m)
       + (wu.row(rating.u) + wm.row(rating.m)).dot(movieMat.row(rating.m));
     e -= rating.v;
+
+    if (fabs(e) > 1.5 || e != e) {
+      printf("#%d [u=%6d, m=%6d]   ", j, rating.u, rating.m);
+
+      printf("e=%4.2f, LuRm=%4.2f |Lu|=%4.2f, |Rm|=%4.2f, |wu|=%4.2f, |wm|=%4.2f, |f(m)|=%.4f, |bu|=%4.2f, |bm|=%4.2f\n", 
+        e, LuRm, rn(L,rating.u), rn(R,rating.m),  rn(wu, rating.u), rn(wm, rating.m), rn(movieMat, rating.m), bu(rating.u), bm(rating.m));
+
+      // cout << "Lu" << L.row(rating.u) << endl;
+      // cout << "Rm" << R.row(rating.m) << endl;
+      // cout << "wu" << wu.row(rating.u) << endl;
+      // cout << "wm" << wm.row(rating.m) << endl;
+      if (fabs(e) > 100) exit(-1);
+    }
 
     MatrixXf LT(L.row(rating.u));
     L.row(rating.u) = c1 * L.row(rating.u) - FLAGS_eta * e * R.row(rating.m);
@@ -258,6 +284,19 @@ void update(SparseMatrix &rating) {
 
     wu.row(rating.u) = c2 * wu.row(rating.u) - FLAGS_eta * e * movieMat.row(rating.m);
     wm.row(rating.m) = c2 * wm.row(rating.m) - FLAGS_eta * e * movieMat.row(rating.m);
+
+    float nLu = rn(L,rating.u);
+    float nRm = rn(R,rating.m);
+    float nwu = rn(wu, rating.u);
+    float nwm = rn(wm, rating.m);
+
+    if ( fabs(bu(rating.u)) > 1.0 || fabs(bm(rating.m)) > 1.0 || nLu > 1.4 || nRm > 1.4 || nwu>1 || nwm > 1) {
+      float LuRm = L.row(rating.u).dot(R.row(rating.m));
+      printf("#%d [u=%6d, m=%6d]   ", j, rating.u, rating.m);
+      printf("e=%.2f, LuRm=%4.2f, |Lu|=%.3f, |Rm|=%.3f, |wu|=%.3f, |wm|=%.3f, |bu|=%.3f, |bm|=%.3f\n", 
+        e, LuRm, nLu, nRm, nwu, nwm, bu(rating.u), bm(rating.m));
+    }
+
   } else {
     float c1 = (1 - FLAGS_eta * FLAGS_lambda);
     float e = L.row(rating.u).dot(R.row(rating.m));
@@ -287,12 +326,16 @@ void init() {
 
 }
 void run() {
-  printf("RMSE %f\n", RMSE(rawRatings));
+  printf(" i,   RMSE, time\n");
+  printf(" 0, %.4f,    0  \n", RMSE(rawRatings));
   for (int it = 0; it < FLAGS_maxit; it++) {
     printf("Iteration %d\n", it);
     tic("one iteration");
+    j=0;
     for (auto rating : rawRatings) {
+      
       update(rating);
+      j++;
     }
     toc("one iteration");
     printf("RMSE %f\n", RMSE(rawRatings));
@@ -317,8 +360,8 @@ void DSGD() {
       //printf("%d ", subRawRatings[i][j].size());
     //}
   //} 
-
-  printf("[0] RMSE %f\n", RMSE(rawRatings));
+  printf(" i,   RMSE, time\n");
+  printf(" 0, %.4f,    0  \n", RMSE(rawRatings));
   int interval = FLAGS_interval;
   double start0 = timestamp();
   for (int it = 0; it < FLAGS_maxit; it++) {
@@ -333,11 +376,11 @@ void DSGD() {
     }
     if (FLAGS_byit) {
       //printf("[%d] RMSE %f:%f [%fs, %fs]\n", it+1, RMSE(rawRatings), RMSE(rawRatingsTest), timestamp() - start1, timestamp() - start0);
-      printf("[%d] RMSE %f [%fs]\n", it+1, RMSE(rawRatings), timestamp() - start0);
+      printf("%2d, %.4f, %f \n", it+1, RMSE(rawRatings), timestamp() - start0);
     } else {
       if (timestamp() - start0 > interval) {
         interval += FLAGS_interval;
-        printf("[%d] RMSE %f [%fs]\n", it+1, RMSE(rawRatings), timestamp() - start0);
+        printf("%2d, %.4f, %f \n", it+1, RMSE(rawRatings), timestamp() - start0);
       }
     }
   }
@@ -393,8 +436,8 @@ void NOMAD() {
   for (int i = 0; i < subRawRatings[0].size(); i++) {
     qs[rand() % FLAGS_cores].push(i);
   }
-
-  printf("[0] RMSE %f\n", RMSE(rawRatings));
+  printf(" i,   RMSE, time\n");
+  printf(" 0, %.4f,    0  \n", RMSE(rawRatings));
 
   vector<thread> threads;
   for (int i = 0; i < FLAGS_cores; i++) {
@@ -405,7 +448,7 @@ void NOMAD() {
   for (int i = 0; i < FLAGS_maxit; i++) {
     if (timestamp() - start0 > interval) {
       interval += FLAGS_interval;
-      printf("[%d] RMSE %f [%fs]\n", i+1, RMSE(rawRatings), timestamp() - start0);
+      printf("%2d, %.4f, %f \n", i+1, RMSE(rawRatings), timestamp() - start0);
     }
     sleep(1);
   }
