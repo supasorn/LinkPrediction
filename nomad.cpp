@@ -11,21 +11,23 @@ using namespace std;
 
 using namespace Eigen;
 
-DEFINE_double(eta, 0.01, "Mask scale");
-DEFINE_double(lambda, 0.01, "Mask scale");
-DEFINE_double(lambdaw, 0.01, "Mask scale");
-DEFINE_string(movie, "data/movies.mtx", "a");
-DEFINE_string(data, "data/ratings_debug_train.mtx", "a");
-DEFINE_string(datatest, "data/ratings_debug_test.mtx", "a");
-DEFINE_int32(rank, 5, "a");
-DEFINE_int32(lim, 0, "a");
-DEFINE_int32(maxit, 20, "a");
-DEFINE_int32(cores, 0, "a");
-DEFINE_int32(interval, 5, "a");
-DEFINE_string(method, "SGD", "a");
-DEFINE_bool(unified, true, "use opengl");
-DEFINE_bool(shuffle, true, "use opengl");
-DEFINE_bool(byit, false, "use opengl");
+DEFINE_double(eta, 0.01, "");
+DEFINE_double(lambda, 0.01, "");
+DEFINE_double(lambdaw, 0.01, "");
+DEFINE_bool(big, false, "");
+DEFINE_int32(rank, 5, "");
+DEFINE_int32(lim, 0, "");
+DEFINE_int32(maxit, 20, "");
+DEFINE_int32(cores, 0, "");
+DEFINE_int32(interval, 5, "");
+DEFINE_string(method, "SGD", "");
+DEFINE_bool(unified, true, "");
+DEFINE_bool(shuffle, true, "");
+DEFINE_bool(byit, true, "");
+
+DEFINE_string(movie, "", "a");
+DEFINE_string(data, "", "a");
+DEFINE_string(datatest, "", "a");
 
 std::map<std::string, double> ticmap;
 std::map<std::string, double> ticamap; // accumulate
@@ -113,7 +115,7 @@ void loadMovie() {
     float c;
     sscanf(st, " %d %d %f", &a, &b, &c);
     if (count == 0) {
-      movieMat = Matrix<float, Dynamic, Dynamic, RowMajor>(a, b);
+      movieMat = Matrix<float, Dynamic, Dynamic, RowMajor>::Zero(a, b);
     } else {
       movieMat(shuffleR[a-1], b-1) = c;
       if (fabs(c) > 1) {
@@ -159,15 +161,13 @@ void load() {
       printf("User: %d Movies: %d Ratings: %d\n", nUser, nMovie, nRating);
     } else {
       if (c > 5 || c < 0) printf("WRONG INPUT RATING!!");
-      c = (c-0.5)/4.5;
+      //c = (c-0.5)/4.5;
 
       rawRatings.push_back(SparseMatrix(shuffleL[a-1], shuffleR[b-1], c));
       avgRating += c;
-      if (fabs(c) > 5) exit(0);
       count++;
       //mm[b-1]++;
     }
-    if (FLAGS_lim > 0 && count > FLAGS_lim) break;
   }
   avgRating /= count;
   printf("Reading Training Set .. Done\n");
@@ -183,7 +183,6 @@ void load() {
       rawRatingsTest.push_back(SparseMatrix(shuffleL[a-1], shuffleR[b-1], c));
     }
     count++;
-    if (FLAGS_lim > 0 && count > FLAGS_lim) break;
   }
   fclose(fi);
   printf("Reading Test Set .. Done\n");
@@ -242,6 +241,16 @@ void update(SparseMatrix &rating) {
       + (wu.row(rating.u) + wm.row(rating.m)).dot(movieMat.row(rating.m));
     e -= rating.v;
 
+    /*
+    if (fabs(rn(movieMat, rating.m) - 1) > 0.00001 ) {
+      printf("err %f\n", rn(movieMat, rating.m) - 1);
+      for (int i = 0; i < 59; i++) {
+        printf("%f\n", movieMat(rating.m, i));
+      }
+      printf("rating.m = %d\n", rating.m);
+      exit(0);
+    }
+
     if (fabs(e) > 1.5 || e != e) {
       printf("#%d [u=%6d, m=%6d]   ", j, rating.u, rating.m);
 
@@ -253,7 +262,7 @@ void update(SparseMatrix &rating) {
       // cout << "wu" << wu.row(rating.u) << endl;
       // cout << "wm" << wm.row(rating.m) << endl;
       if (fabs(e) > 100) exit(-1);
-    }
+    }*/
 
     MatrixXf LT(L.row(rating.u));
     L.row(rating.u) = c1 * L.row(rating.u) - FLAGS_eta * e * R.row(rating.m);
@@ -290,12 +299,12 @@ void update(SparseMatrix &rating) {
     float nwu = rn(wu, rating.u);
     float nwm = rn(wm, rating.m);
 
-    if ( fabs(bu(rating.u)) > 1.0 || fabs(bm(rating.m)) > 1.0 || nLu > 1.4 || nRm > 1.4 || nwu>1 || nwm > 1) {
-      float LuRm = L.row(rating.u).dot(R.row(rating.m));
-      printf("#%d [u=%6d, m=%6d]   ", j, rating.u, rating.m);
-      printf("e=%.2f, LuRm=%4.2f, |Lu|=%.3f, |Rm|=%.3f, |wu|=%.3f, |wm|=%.3f, |bu|=%.3f, |bm|=%.3f\n", 
-        e, LuRm, nLu, nRm, nwu, nwm, bu(rating.u), bm(rating.m));
-    }
+    //if ( fabs(bu(rating.u)) > 1.0 || fabs(bm(rating.m)) > 1.0 || nLu > 1.4 || nRm > 1.4 || nwu>1 || nwm > 1) {
+      //float LuRm = L.row(rating.u).dot(R.row(rating.m));
+      //printf("#%d [u=%6d, m=%6d]   ", j, rating.u, rating.m);
+      //printf("e=%.2f, LuRm=%4.2f, |Lu|=%.3f, |Rm|=%.3f, |wu|=%.3f, |wm|=%.3f, |bu|=%.3f, |bm|=%.3f\n", 
+        //e, LuRm, nLu, nRm, nwu, nwm, bu(rating.u), bm(rating.m));
+    //}
 
   } else {
     float c1 = (1 - FLAGS_eta * FLAGS_lambda);
@@ -468,23 +477,11 @@ void NOMAD() {
 
 }
 
-void bench() {
-  Matrix<float,Dynamic,Dynamic,RowMajor> A(10000, 10000);
-  tic("a");
-  for (int i = 0; i < 1000; i++) {
-    int a = rand()%1000;
-    int b = rand()%1000;
-    A.row(a) = A.row(a) * A.row(a).dot(A.row(b));
+void test() {
+  for (int i = 0; i < 59; i++) {
+    printf("%f\n", movieMat(92, i));
   }
-  toc("a");
-  tic("b");
-  for (int i = 0; i < 1000; i++) {
-    int a = rand()%1000;
-    int b = rand()%1000;
-    A.col(a) = A.col(a) * A.col(a).dot(A.col(b));
-  }
-  toc("a");
-  exit(0);
+  printf("rating.m = %d\n", 92);
 }
 
 
@@ -495,6 +492,17 @@ int main(int argc, char** argv) {
   if (FLAGS_cores == 0) {
     FLAGS_cores = std::thread::hardware_concurrency();
   }
+
+  if (FLAGS_big) {
+    FLAGS_movie = "data/movies.mtx";
+    FLAGS_data = "data/ratings_train.mtx";
+    FLAGS_datatest = "data/ratings_test.mtx";
+  } else {
+    FLAGS_movie = "data/movies_ratings_debug.mtx";
+    FLAGS_data = "data/ratings_debug_train.mtx";
+    FLAGS_datatest = "data/ratings_debug_test.mtx";
+  }
+
   srand(0);
   load();
   init();
