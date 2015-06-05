@@ -108,23 +108,24 @@ prediction problem (in which we predict unknown ratings for already-seen
 movies in the training set). To achieve that, we generated two datasets from the
 rating matrix R (of rank $n_u \times n_m$):
 
-\textbf{1) Training and test data set for the standard problem ($D_s$).}
-For the standard problem, we obtain a test set by taking out 20\% of all the
-ratings from the rating matrix and use the remaining for training.
-Due to our limited computational resources and time, it is infeasible to
-perform a cross-validation on the full training set, so we divide a subset
-of the training data into 4:1 split as a small training and validation set
-for determining hyper-parameter.  Once all hyper-parameters are learned, we
-re-train our model on the full training set (i.e. 80\% of original data) and
-evaluate on the test set.
+\textbf{1) Training and test data set for the standard problem ($D_s$).} For
+the standard problem, we obtain a test set ($D_{s,test}$) by taking out 20\%
+of all the ratings from the rating matrix and use the remaining as the
+training set ($D_{s,train}$). Due to our limited computational resources and
+time, it is infeasible to search for optimal parameters on the full training
+set. Therefore, we create a random submatrix for model search $D^*_{s}$ by
+sampling 20\% of movies and users and split $D^*_{s}$ into $D^*_{s,train}$ and
+$D^*_{s,validate}$ using $4:1$ ratio. Once all hyper-parameters are learned,
+we re-train our model on the full training set ($D_{s,train}$) and evaluate on
+the test set ($D_{s,test}$).
 
-\textbf{2) Training and test data set for the cold-start problem ($D_c$).}
-For the cold-start problem, we obtain a test set by taking out 20\% of   the
-{\em columns} from the rating matrix and use the remaining for training. This
-assures that all the ratings of each movie in the test set have not been
-included for model learning.   For cross-validation, we further split the
-training set, re- train the model on the full training set, and evaluate on
-the test set akin to the standard data set.
+\textbf{2) Training and test data set for the cold-start problem ($D_c$).} For
+the cold-start problem, we obtain a test set ($D_{c,test}$) by taking out 20\%
+of   the {\em columns} from the rating matrix and use the remaining as the
+training set ($D_{c,train}$). This assures that all the ratings of each movie
+in the test set have not been included for model learning.   Similar to $D_s$, we create a submatrix $D^*_{c}$ using the same sampling method and
+split them into $D^*_{s,train}$ and $D^*_{s,validate}$ using $4:1$ ratio for
+selecting optimal parameters.
 
 
 
@@ -317,13 +318,14 @@ In all of our experiments,  we initialize the latent matrices $U$ and $M$ by dra
 
 \subsection{Performance}
 
-We spend equal amount of time optimizing both parallelization scheme.
+\todo{plan}
 
 \subsection{Hyperparameter Optimization}
 
 We run a grid search to optimize hyperparameters for both pure and hybrid
 matrix factorization.
-Due to resource limitation, we search for parameter using a subset of 1 million and run only DSGD algorithm as \todo{why?}
+Due to resource limitation, we search for parameter using a sampled submatrix
+$D_s^*$ and run only DSGD algorithm as \todo{why?}
 
 We search over $k \in \{5, 10, 20\}$, $\lambda \in \{
 0.001, 0.01, 0.1, 1, 10\}$ for both formulation and $\lambda_m \in \{
@@ -335,12 +337,12 @@ $k=20$, $\lambda=0.1$ and $\lambda_w=0.1$ (for the hybrid model).
 \includegraphics[width=4.2in]{figures/grid}
 \caption{\label{fig:gridsearch} Heatmap Table showing $rmse_{validate}$ from
 running grid search for different parameters $k$, $\lambda$, $\lambda_m$ for
-both hybrid and pure MF using 1M subset of the training data.  Lower $rmse$
+both pure MF (left) and hybrid MF (right) using 1M subset of the training data.  Lower $rmse$
 values are shown in green while high values are shown in red.  Optimal $rmse$
 for each formulation are highlighted with a bold text and thick border.}
 \end{figure}
 
-\subsection{Experimenting with $D_n$}
+\subsection{Experimenting with $D_s$}
 
 Using the optimal parameter from the previous section,
 we run
@@ -348,7 +350,7 @@ we run
 - plot rmse validation across parameter
 - report final rmse test with two algorithm -- bar chart
 
-\subsection{Experimenting with $D_{cs}$}
+\subsection{Experimenting with $D_{c}$}
 
 
 
