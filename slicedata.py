@@ -1,30 +1,10 @@
-
-# coding: utf-8
-
-# In[1]:
-
-from __future__ import division
-import scipy as sp
-import numpy as np
-from scipy import io
+# 3-way split
 
 
-# In[2]:
+from lib_transform import Transformer, sample_split  # , get_debug
 
-f = io.mmread("data/netflix_mm")
+T = Transformer()
 
-
-# In[3]:
-
-f.shape
-
-
-# In[6]:
-
-io.mmwrite("data/netflix_mm_50000_5000", f.tocsc()[:,:5000].tocsr()[:50000,:])
-
-
-# In[ ]:
-
-
-
+train_ids, validate_ids, test_ids = sample_split(T.nr, n_validate=T.nr/5)
+T.save_ratings_splits_mtx(train_ids, validate_ids, test_ids, 'ratings3normal')
+T.save_ratings_splits_sf(train_ids, validate_ids, test_ids, 'ratings3normal')
