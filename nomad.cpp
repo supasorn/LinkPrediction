@@ -248,7 +248,6 @@ void update(SparseMatrix &rating) {
       printf("e=%4.2f, LuRm=%4.2f |Lu|=%4.2f, |Rm|=%4.2f, |wu|=%4.2f, |wm|=%4.2f, |f(m)|=%.4f, |bu|=%4.2f, |bm|=%4.2f\n", 
         e, LuRm, rn(L,rating.u), rn(R,rating.m),  rn(wu, rating.u), rn(wm, rating.m), rn(movieMat, rating.m), bu(rating.u), bm(rating.m));
 
-
       // cout << "Lu" << L.row(rating.u) << endl;
       // cout << "Rm" << R.row(rating.m) << endl;
       // cout << "wu" << wu.row(rating.u) << endl;

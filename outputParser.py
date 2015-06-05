@@ -6,8 +6,8 @@ from matplotlib.ticker import LinearLocator, FormatStrFormatter
 import matplotlib.pyplot as plt
 import numpy as np
 
-result = "output_crossvalid_nounified"
-result = "output_crossvalid"
+#result = "valid_nounified"
+result = "valid_unified"
 l = os.listdir(result)
 
 def read(st):
@@ -15,11 +15,11 @@ def read(st):
             "lam": re.search("Lambda LR: (.*)", st).group(1),
             "lamw": re.search("Lambda W: (.*)", st).group(1),
             "rank": re.search("Rank: (.*)", st).group(1),
-            "train": re.search("Train RMSE (.*)", st).group(1),
-            "test": re.search("Test RMSE (.*)", st).group(1)}
+            "train": re.search("Train RMSE :(.*)", st).group(1),
+            "test": re.search("Test RMSE :(.*)", st).group(1)}
 
-lambs = [0, 0.001, 0.01, 0.1, 1, 10]
-lambws = [0, 0.001, 0.01, 0.1, 1, 10]
+lambs = [0.001, 0.01, 0.1, 1, 10]
+lambws = [0.001, 0.01, 0.1, 1, 10]
 
 
 bestTest = 1e10
