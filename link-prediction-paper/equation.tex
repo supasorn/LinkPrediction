@@ -38,6 +38,7 @@ University of Washington\\
 \newcommand{\U}{U}
 \newcommand{\M}{M}
 \newcommand{\kernel}{K}
+\newcommand{\normv}[1]{\|#1\|_2}
 
 \nipsfinalcopy % Uncomment for camera-ready version
 
@@ -53,32 +54,27 @@ University of Washington\\
 
 Our goal is to predict movie ratings for each user based on previous ratings
 and movie metadata including genres and user-provided tags.
-
-\todo{finish writing intro}
-To address cold-start problem, we formulate
-
-
 Specifically, we implement a learning model based on matrix
 factorization~\cite{koren:matrix} that addresses the following problems:
 
-\textbf{1) Cold-Start Problem.}
+\textbf{1) Run-time Performance.}
+We implemented three parallelization techniques that enable fast
+learning algorithm:
+(a) GraphLab Create with edge-centric update
+(b) Distributed Stochastic Gradient Descent (DSGD)
+(c) Non-locking Stochastic Multi-machine Algorithm for Asynchronous and Decentralized Matrix Completion (NOMAD) with dynamic load balancing.
+We compared performance of these techniques and run the algorithm with
+\todo{NOMAD?}, which is the most performing algorithm.
+
+
+\textbf{2) Cold-Start Problem.}
 A common problem for matrix factorization-based method for collaborative
 filtering is the inability to address unseen items (movies in our case) or
 users.  We address this problem by using a hybrid model combining matrix
 factorization and content-based filtering techniques using metadata as
 features. To address high dimensionality, we compress tags' feature vectors
-using hash-kernel techniques~\cite{shi:hashkernels}.
-
-\textbf{2) Run-time Performance.}
-We aim to explore parallelization techniques and frameworks that enable fast
-learning algorithm.  In our initial work, we experiment with a simple
-interference-free parallelization scheme for stochastic gradient descent
-(SGD) which avoids work overriding and can simultaneously utilize all
-available cores. We plan to implement and compare SGD on a distributed
-framework such as GraphLab.
-
-% We plan to compare our method with Hogwild method by Niu et al.~\cite{niu:hogwild} that uses a shared-memory model without locks to eliminate the locking overhead.
-
+using hash-kernel techniques~\cite{shi:hashkernels}.  We compare results
+from the hybrid model with pure matrix factorization.  The results show that \todo{summarize result here}
 
 
 \section{Dataset \& Preprocessing}
@@ -87,12 +83,18 @@ We use the MovieLens 20M\footnote{http://grouplens.org/datasets/movielens/}
 as our benchmark dataset.  The dataset contains the following features:
 
 \begin{itemize}[leftmargin=15pt]
-	\item Over 20 million ratings for 27,278 movies by 138,493 users ($n_u$).
-	0.5\% of the rating matrix $R$ has non-zero values.
+	\item Over 20 million ratings for 27,278 movies ($n_m$) by 138,493 users ($n_u$).
+	0.5\% of the rating matrix $R$ has non-zero values.  The original ratings ranges from 0.5 to 5.  We normalize the rating by setting each rating to
+\begin{align}
+	 R = \frac{R_{original} - 0.5}{4.5}
+\end{align}
+
 	\item Genres of each movie, given as a set of genres associated with each
 movie. There are 19 unique genres ($n_g$).
+
 	\item 65,564 user-provided tags (37,896 unique tags), such as ``dark hero'', ``bollywood'',
 	``conspiracy theory''.  We remove space and symbols for each tag to remove duplicate entities.
+
 	\item All users included in the data have rated at least 20 movies.
 \end{itemize}
 
@@ -145,7 +147,7 @@ tags. This implicit information is useful in scenario where we try to
 predict ratings for unobserved movies that have similar tags to the existing
 ones and can be used in a feature-based model to complement the prediction.
 
-For each movie, we model the genres a boolean vector $\bm{g_m} \in
+For each movie, we model the genres as a membership boolean vector $\bm{g_m} \in
 \{0,1\}^{19}$ and tags count vector $\bm{t_m} \in \mathbb{N}_0^{465,564}$ where
 $t_m^j$ represents the number of times that movie $m$ is tagged by tag $j$.  To
 compress the tag vector, we use hash kernel to project each
@@ -158,14 +160,15 @@ function $h$ and $\xi$ sign hash function.
 where $h: X \rightarrow \{1, ..., 40\}$ and $\xi: X \rightarrow \{1,-1\}$.
 \end{center}
 
-We then normalize the kernel projection using $L_0$ norm.
+We then normalize the genre membership vector and kernel projection using $L_2$ norm.
 \begin{align}
-	\hat{\kernel}(\bm{t_m}) = \frac{\kernel(\bm{t_m})}{\|\kernel(\bm{t_m})\|_0}
+	\bm{\hat{g}_m} = \frac{\bm{\hat{g}_m}}{\normv{\bm{\hat{g}_m}}},
+	\hat{\kernel}(\bm{t_m}) = \frac{\kernel(\bm{t_m})}{\|\kernel(\bm{t_m})\|_2}
 \end{align}
 
-After compression, we can model feature vector for each movie.
+After compression, we can model movie feature vector for each movie $\phi(m)$ as normalized concatenation of the genres membership vector and the tags kernel vector. As both vectors have $L_2$ norm of $1$, we can normalize the concatenation by dividing by square root of
 \begin{align}
-	\phi(m) = [\bm{g_m}\ \ \hat{\kernel}(\bm{t_m})]
+	\phi(m) = \frac{1}{\sqrt{2}} [\bm{\hat{g}_m}\ \ \hat{\kernel}(\bm{t_m})]
 \end{align}
 
 With these features, we model the interaction as a dot product $w \cdot
@@ -306,6 +309,10 @@ for each formulation are highlighted with a bold text and thick border.}
 \subsection{Experimenting with $D_{cs}$}
 
 
+
+\section{Lessons Learned}
+
+In our earlier implementation, we did not normalize ratings and normalize
 
 \section{Conclusion}
 
