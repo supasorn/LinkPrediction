@@ -13,6 +13,7 @@ from graphlab import SFrame
 
 
 class Transformer(object):
+
     def __init__(self):
         # read movies and tags
         self.movies = pd.read_csv("data/ml-20m/movies.csv", quotechar='"')
@@ -115,9 +116,6 @@ class Transformer(object):
         valid_ids = get_debug(valid_ids)
         test_ids = get_debug(test_ids)
 
-        # save_ratings_splits(ratings, train_ids, valid_ids, test_ids, 'ratings_debug')
-        # save_ratings_splits_mtx(ratings, train_ids, valid_ids, test_ids, 'ratings_debug')
-
         return train_ids, valid_ids, test_ids
 
     def get_movie_matrix(self, nht, save_to=None):
@@ -148,10 +146,10 @@ class Transformer(object):
                 print "div %d" % i
             sg = (m[i, :ng].data ** 2).sum() ** 0.5
             if sg > 0:
-                m[i, :ng].data /= sg * sqrt2
+                m[i, :ng] /= sg * sqrt2
             st = (m[i, ng:].data ** 2).sum() ** 0.5
             if st > 0:
-                m[i, ng:].data /= st * sqrt2
+                m[i, ng:] /= st * sqrt2
         m.eliminate_zeros()
         return m
 
@@ -167,6 +165,8 @@ def sample_split(n, n_test=None, n_validate=None):
 
     return train_ids, validate_ids, test_ids
 
+# def get_debug_rows_cols(M):
+
 
 def csc_col_to_zero(csc, col):
     csc.data[csc.indptr[col]: csc.indptr[col + 1]] = 0
@@ -176,3 +176,11 @@ def csc_cols_to_zero(csc, cols):
     for col in cols:
         csc_col_to_zero(csc, col)
     csc.eliminate_zeros()
+
+
+def normal_split(nr, T):
+    train_ids, valid_ids, test_ids = sample_split(nr)
+    T.save_ratings_splits_mtx(train_ids, valid_ids, test_ids, 'ratings_normal')
+    T.save_ratings_splits_sf(train_ids, valid_ids, test_ids, 'ratings_normal')
+    return train_ids, valid_ids, test_ids
+#     save_ratinenres = movies['genres'].map(lambda x: set(x.split('|')))
