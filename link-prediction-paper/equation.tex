@@ -233,12 +233,12 @@ Equation $\ref{eq:main}$. The update equations for the latent variables given
 a rating $r_{um}$ are:
 
 \begin{align}
-L_u^{i+1} &= L_u^{i} - \eta ( \epsilon_{um} R_m  + \lambda_u L_u^i)\\
+L_u^{i+1} &= L_u^{i} - \eta ( \epsilon_{um} R_m  + \lambda_u L_u^i) \label{eq:update1st}\\
 R_m^{i+1} &= R_m^{i} - \eta ( \epsilon_{um} L_u  + \lambda_u R_m^i)\\
 w_u^{i+1} &= w_u^{i} - \eta ( \epsilon_{um} \phi(m) + \lambda_{w_u} w_u^i)\\
 w_m^{i+1} &= w_m^{i} - \eta ( \epsilon_{um} \phi(m) + \lambda_{w_m} w_m^i)\\
 b_u^{i+1} &= b_u^{i} - \eta \epsilon_{um}\\
-b_m^{i+1} &= b_m^{i} - \eta \epsilon_{um}
+b_m^{i+1} &= b_m^{i} - \eta \epsilon_{um} \label{eq:updatelast}
 \end{align}
 where
 \begin{align}
@@ -299,13 +299,21 @@ for each iteration.}
 
 \subsection{GraphLab}
 
-We implement another version of parallel stochastic gradient descent using GraphLab Create by using edge-centric update.
+We implement another version of parallel SGD using
+GraphLab Create by using edge-centric update \texttt{triple\_apply} function, which visit each edge once in parallel with locks on vertices.
+Basically, no edges with the same vertex will updated concurrently.
 
-\todo{define locking}.
+The matrix is modeled as a bi-partite graph between users and movies vertices.
+Edge between user $u$ and movie $m$ contains a rating of movie $m$ by user $u$
+($r_{um}$). Each user vertex $u$ contains latent factor vector $L_u$, weight
+vector $w_u$ and the bias term $b_u$. Similarly, each movie vertex $m$
+contains latent factor vector ($R_m$), weight vector $w_m$ and the bias term
+$b_m$ but also includes the feature vector $\phi(m)$.  The update function
+ basically updates data in source and sink vertices using equations (\ref{eq:update1st})-(\ref{eq:updatelast}).
 
 \section{Experiments}
 
-In all of our experiments,  we initialize the latent matrices $U$ and $M$ by drawing a sample from a uniform distribution in the range $\left[0,\sqrt{\frac{\bar{r}}{0.25k}}\right)$ for each entry in the matrices where $\bar{r}$ is the average rating and $k$ is the matrix rank. Thus, $E[\hat{r}_{um}^0] = \bar{r}$..
+In all of our experiments,  we initialize the latent matrices $U$ and $M$ by drawing a sample from a uniform distribution in the range $\left[0,\sqrt{\frac{\bar{r}}{0.25k}}\right)$ for each entry in the matrices where $\bar{r}$ is the average rating and $k$ is the matrix rank. Thus, $E[\hat{r}_{um}^0] = \bar{r}$.
 
 \subsection{Performance}
 
@@ -314,19 +322,13 @@ We spend equal amount of time optimizing both parallelization scheme.
 \subsection{Hyperparameter Optimization}
 
 We run a grid search to optimize hyperparameters for both pure and hybrid
-matrix factorization. We search over $k \in \{5, 10, 20\}$, $\lambda \in \{
+matrix factorization.
+Due to resource limitation, we search for parameter using a subset of 1 million and run only DSGD algorithm as \todo{why?}
+
+We search over $k \in \{5, 10, 20\}$, $\lambda \in \{
 0.001, 0.01, 0.1, 1, 10\}$ for both formulation and $\lambda_m \in \{
-0.001, 0.01, 0.1, 1, 10\}$ for the hybrid model.
-
-Due to resource limitation, we search for parameter using a subset of 1 million
-
-
-We also run only the NOMAD algorithm as it
-has been shown in the previous section that it has the highest performance.
-
-Figure~\ref{fig:gridsearch} shows resulting $rmse_{validate}$ from the grid search.
-For both formulation, the optimal $rmse_{validate}$ are obtained when
-$k=20$, $\lambda=0.1$ and $\lambda_w=1$ (for the hybrid model).
+0.001, 0.01, 0.1, 1, 10\}$ for the hybrid model.  Figure~\ref{fig:gridsearch} shows resulting $rmse_{validate}$ from the grid search.  For both formulation, the optimal $rmse_{validate}$ are obtained when
+$k=20$, $\lambda=0.1$ and $\lambda_w=0.1$ (for the hybrid model).
 
 \begin{figure}[h]
 \centering
@@ -338,12 +340,11 @@ values are shown in green while high values are shown in red.  Optimal $rmse$
 for each formulation are highlighted with a bold text and thick border.}
 \end{figure}
 
-
-
-
 \subsection{Experimenting with $D_n$}
 
-- grid parameter
+Using the optimal parameter from the previous section,
+we run
+
 - plot rmse validation across parameter
 - report final rmse test with two algorithm -- bar chart
 
