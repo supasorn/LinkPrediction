@@ -204,7 +204,7 @@ float RMSE(vector<SparseMatrix> &ratings) {
     float e;
     if (FLAGS_unified) {
       e = L.row(rating.u).dot(R.row(rating.m)) + bu(rating.u) + bm(rating.m) + (wu.row(rating.u) + wm.row(rating.m)).dot(movieMat.row(rating.m));
-      double a = L.row(rating.u).dot(R.row(rating.m));
+      //double a = L.row(rating.u).dot(R.row(rating.m));
       //printf("%f %f\n", L.row(rating.u).dot(L.row(rating.u)), R.row(rating.m).dot(R.row(rating.m)));
       //if (a != a) {
         //cout << L.row(rating.u) << endl;
