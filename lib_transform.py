@@ -240,6 +240,46 @@ def csc_cols_to_zero(csc, cols):
     return csc
 
 
+def gen_cs_ratio(ratings_matrix, r_test=0.2, r_test2=0.3, r_validate=0, name='ratings_cs'):
+    (nu, nm) = ratings_matrix.shape
+    n_test = int(r_test * nm)
+    n_validate = int(r_validate * nm)
+
+    ratings_matrix_csc = ratings_matrix.tocsc()
+
+    samples = sample(range(nm), n_test + n_validate)
+    test_movie_ids = samples[0:n_test]
+    validate_movie_ids = samples[n_test:]
+    train_movie_ids = list(set(range(nm)) - set(samples))
+
+    test_user_ids = sample(range(nu), r_test2*nu)
+    train_user_ids = list(set(range(nu)) - set(test_user_ids))
+
+    train_ratings_mtx = ratings_matrix_csc.copy()
+    test_ratings_mtx = csc_cols_to_zero(
+        ratings_matrix_csc.copy(), train_movie_ids + validate_movie_ids)
+
+    for i, mid in enumerate(test_movie_ids):
+        if i % 1000 == 0:
+            print "test_movie_id", i
+        for uid in train_user_ids:
+            test_ratings_mtx[uid, mid] = 0
+        for uid in test_user_ids:
+            train_ratings_mtx[uid, mid] = 0
+
+    train_ratings_mtx.eliminate_zeros()
+    test_ratings_mtx.eliminate_zeros()
+
+    if n_validate > 0:
+        valid_ratings_tmx = csc_cols_to_zero(
+            ratings_matrix_csc.copy(), train_movie_ids + test_movie_ids)
+        sio.mmwrite('data/%s_validate.mtx' % name, valid_ratings_tmx)
+
+    sio.mmwrite('data/%s_train.mtx' % name, train_ratings_mtx)
+    sio.mmwrite('data/%s_test.mtx' % name, test_ratings_mtx)
+    return train_ratings_mtx, valid_ratings_tmx, test_ratings_mtx
+
+
 def get_sf_from_coo(coo, save_to):
     sf = SFrame({'userId': coo.row, 'movieId': coo.col, 'rating': coo.data})
     if save_to is not None:
@@ -253,6 +293,8 @@ def normal_split(nr, T):
     T.save_ratings_splits_mtx(train_ids, valid_ids, test_ids, 'ratings_normal')
     T.save_ratings_splits_sf(train_ids, valid_ids, test_ids, 'ratings_normal')
     return train_ids, valid_ids, test_ids
+
+
 #     save_ratinenres = movies['genres'].map(lambda x: set(x.split('|')))
 #
 # def two_round_split():
