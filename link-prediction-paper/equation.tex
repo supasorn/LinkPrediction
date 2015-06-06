@@ -262,23 +262,19 @@ computing limitation)   or if the changes in rmse falls below 0.005.
 
 \subsection{Distributed Stochastic Gradient Descent (DSGD)}
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=0.5\linewidth]{figures/dsgd}
-\caption{\label{fig:dsgdnomad} Illustration of DSGD algorithms with 4 workers (from ~\cite{yun2013nomad}).
-$W$ and $H$ are initially partitioned into 4 blocks as shown on the left. Each worker runs SGD on its active area as indicated. After each
-worker completes processing data points in its own active
-area, the columns of item parameters $H^T$ are exchanged
-randomly, and the active area changes. This process is repeated
-for each iteration.}
+We implement a variant of DSGD\cite{gemulla2011large} which is a bulk synchronization strategy. We split the rating matrix into $n \times n$ sub-matrices. In each sub iterations, we can find independent sub matrices in each row such that variables to be updated are completely disjoint. In our implementation, we randomly shuffle rows and columns corresponding to movies and users in the rating matrix to reduce the skewness of the matrix entires and make the distribution more uniform. Then we employ a simple scheduler where the $j^{th}$ sub-matrix in row $i$ will be processed at time $(i+j)$ mod $n$ to ensure indepedence.
 
+\begin{figure}[h]
+\centering
+\includegraphics[width=3in]{figures/split.pdf}
+\caption{\label{fig:split} Paralellizing the rating matrix with 5 processors. Sub-iterations are indicated by different colors. Each worker 1, 2, \ldots, 5 runs SGD on its own active area. }
 \end{figure}
 
-\todo{We first implement a variant of DSGD\cite{gemulla2011large}}
+We implemented DSGD entirely in C++. Since DSGD requires no communication between processing units except synchronization at the end of each sub iteration, the implementation is relatively simple and is done using OpenMP shared-memory multiprocessing library. We also use an optimized Math library (Eigen) to peform fast matrix / vector operations. 
 
 \subsection{Non-locking Stochastic Multi-machine Algorithm for Asynchronous and Decentralized Matrix Completion (NOMAD)}
 
-\begin{figure}[hb]
+\begin{figure}[h]
   \centering
   \begin{subfigure}[b]{0.5\textwidth}
     \includegraphics[width=\textwidth]{figures/nomad-alg}
