@@ -15,9 +15,9 @@ import gflags
 FLAGS = gflags.FLAGS
 #gflags.DEFINE_string('train', 'netflix_mm_10000_1000', 'Training File')
 #gflags.DEFINE_string('test', 'netflix_mm_10000_1000', 'Testing File')
-gflags.DEFINE_string('dataset', 'ratings_debug_small', 'dataset')
+gflags.DEFINE_string('dataset', 'ratings_debug', 'dataset')
 # gflags.DEFINE_string('movie', 'movies', 'Testing File')
-gflags.DEFINE_integer('rank', 10, 'Matrix Rank')
+gflags.DEFINE_integer('rank', 20, 'Matrix Rank')
 gflags.DEFINE_float('lamb', 0.1, 'Lambda')
 gflags.DEFINE_float('eta', 0.01, 'Learning Rate')
 gflags.DEFINE_integer('maxit', 50, 'Maximum Number of Iterations')
@@ -33,7 +33,7 @@ from lib import n, m, ng, nht, \
     sgd_triple_updater, sgd_gl_edge, \
     run_full, run_debug, eta_search, \
     search_pure, search_pure_coor, run_pure, \
-    search_unified, search_unified_coor, run_unified
+    search_unified, search_unified_coor, run_mf
 
 def overnightRun():
     # pylint: disable=W0622,W0612
@@ -71,5 +71,5 @@ def main(argv):
     print 'rmse_test', rmse_test
 
 if __name__ == '__main__':
-    # main(sys.argv)
-    overnightRun()
+     main(sys.argv)
+    #overnightRun()
