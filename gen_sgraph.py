@@ -1,4 +1,4 @@
-from scipy.io import sio
+import scipy.io as sio
 from lib_transform import get_sf_from_coo
 
 for r in ['', '_cs']:
