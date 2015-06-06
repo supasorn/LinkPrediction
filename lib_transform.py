@@ -252,7 +252,7 @@ def gen_cs_ratio(ratings_matrix, r_test=0.2, r_test2=0.3, r_validate=0, name='ra
     validate_movie_ids = samples[n_test:]
     train_movie_ids = list(set(range(nm)) - set(samples))
 
-    test_user_ids = sample(range(nu), r_test2*nu)
+    test_user_ids = sample(range(nu), int(r_test2*nu))
     train_user_ids = list(set(range(nu)) - set(test_user_ids))
 
     train_ratings_mtx = ratings_matrix_csc.copy()
