@@ -255,9 +255,9 @@ def gen_cs_ratio(ratings_matrix, r_test=0.2, r_test2=0.3, r_validate=0, name='ra
     test_user_ids = sample(range(nu), int(r_test2*nu))
     train_user_ids = list(set(range(nu)) - set(test_user_ids))
 
-    train_ratings_mtx = ratings_matrix_csc.copy()
+    train_ratings_mtx = ratings_matrix_csc.copy().todok()
     test_ratings_mtx = csc_cols_to_zero(
-        ratings_matrix_csc.copy(), train_movie_ids + validate_movie_ids)
+        ratings_matrix_csc.copy(), train_movie_ids + validate_movie_ids).todok()
 
     for i, mid in enumerate(test_movie_ids):
         if i % 1000 == 0:
