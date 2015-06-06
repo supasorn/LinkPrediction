@@ -267,9 +267,6 @@ def gen_cs_ratio(ratings_matrix, r_test=0.2, r_test2=0.3, r_validate=0, name='ra
         for uid in test_user_ids:
             train_ratings_mtx[uid, mid] = 0
 
-    train_ratings_mtx
-    test_ratings_mtx
-
     if n_validate > 0:
         valid_ratings_tmx = csc_cols_to_zero(
             ratings_matrix_csc.copy(), train_movie_ids + test_movie_ids)
