@@ -15,6 +15,7 @@ DEFINE_double(eta, 0.01, "");
 DEFINE_double(lambda, 0.01, "");
 DEFINE_double(lambdaw, 0.01, "");
 DEFINE_bool(big, false, "");
+DEFINE_bool(cold, false, "");
 DEFINE_int32(rank, 5, "");
 DEFINE_int32(lim, 0, "");
 DEFINE_int32(maxit, 20, "");
@@ -24,6 +25,7 @@ DEFINE_string(method, "SGD", "");
 DEFINE_bool(unified, true, "");
 DEFINE_bool(shuffle, true, "");
 DEFINE_bool(byit, true, "");
+DEFINE_bool(onermse, false, "");
 
 DEFINE_string(movie, "", "a");
 DEFINE_string(data, "", "a");
@@ -383,14 +385,18 @@ void DSGD() {
         }
       } 
     }
-    if (FLAGS_byit) {
-      //printf("[%d] RMSE %f:%f [%fs, %fs]\n", it+1, RMSE(rawRatings), RMSE(rawRatingsTest), timestamp() - start1, timestamp() - start0);
-      printf("%2d, %.4f, %f \n", it+1, RMSE(rawRatings), timestamp() - start0);
-    } else {
-      if (timestamp() - start0 > interval) {
-        interval += FLAGS_interval;
+    if (!FLAGS_onermse) {
+      if (FLAGS_byit) {
+        //printf("[%d] RMSE %f:%f [%fs, %fs]\n", it+1, RMSE(rawRatings), RMSE(rawRatingsTest), timestamp() - start1, timestamp() - start0);
         printf("%2d, %.4f, %f \n", it+1, RMSE(rawRatings), timestamp() - start0);
+      } else {
+        if (timestamp() - start0 > interval) {
+          interval += FLAGS_interval;
+          printf("%2d, %.4f, %f \n", it+1, RMSE(rawRatings), timestamp() - start0);
+        }
       }
+    } else {
+      printf("%2d, %f \n", it+1, timestamp() - start0);
     }
   }
 }
@@ -455,9 +461,11 @@ void NOMAD() {
   double start0 = timestamp();
   int interval = FLAGS_interval;
   for (int i = 0; i < FLAGS_maxit; i++) {
-    if (timestamp() - start0 > interval) {
-      interval += FLAGS_interval;
-      printf("%2d, %.4f, %f \n", i+1, RMSE(rawRatings), timestamp() - start0);
+    if (!FLAGS_onermse) {
+      if (timestamp() - start0 > interval) {
+        interval += FLAGS_interval;
+        printf("%2d, %.4f, %f \n", i+1, RMSE(rawRatings), timestamp() - start0);
+      }
     }
     sleep(1);
   }
@@ -493,7 +501,11 @@ int main(int argc, char** argv) {
     FLAGS_cores = std::thread::hardware_concurrency();
   }
 
-  if (FLAGS_big) {
+  if (FLAGS_cold) {
+    FLAGS_movie = "data/movies.mtx";
+    FLAGS_data = "data/ratings_cs_train.mtx";
+    FLAGS_datatest = "data/ratings_cs_test.mtx";
+  } else if (FLAGS_big) {
     FLAGS_movie = "data/movies.mtx";
     FLAGS_data = "data/ratings_train.mtx";
     FLAGS_datatest = "data/ratings_test.mtx";
