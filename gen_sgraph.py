@@ -7,4 +7,4 @@ for r in ['', '_cs']:
             filename = 'ratings' + r + d + t
             print filename
             coo = sio.mmread('data/%s.mtx' % filename)
-            get_sf_from_coo(coo, 'data/%s.sgraph' % filename)
+            get_sf_from_coo(coo, 'data/%s.sframe' % filename)
