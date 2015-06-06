@@ -90,9 +90,11 @@ vector<SparseMatrix> rawRatings;
 vector<SparseMatrix> rawRatingsTest;
 int nUser, nMovie, nRating, j;
 float avgRating;
+float b;
 
 MatrixXf L, R, wu, wm;
 VectorXf bu, bm;
+RowVectorXf wg;
 
 void printParameters() {
   printf(" Unified: %d\n", FLAGS_unified);
@@ -205,14 +207,8 @@ float RMSE(vector<SparseMatrix> &ratings) {
     float e;
     if (FLAGS_unified) {
       e = L.row(rating.u).dot(R.row(rating.m)) + bu(rating.u) + bm(rating.m) + (wu.row(rating.u) + wm.row(rating.m)).dot(movieMat.row(rating.m));
-      //double a = L.row(rating.u).dot(R.row(rating.m));
-      //printf("%f %f\n", L.row(rating.u).dot(L.row(rating.u)), R.row(rating.m).dot(R.row(rating.m)));
-      //if (a != a) {
-        //cout << L.row(rating.u) << endl;
-        //cout << R.row(rating.m) << endl;
-        //printf("err\n");
-        //exit(0);
-      //}
+      //e = L.row(rating.u).dot(R.row(rating.m)) + b + bu(rating.u) + bm(rating.m) + (wg + wu.row(rating.u) + wm.row(rating.m)).dot(movieMat.row(rating.m));
+
     } else {
       e = L.row(rating.u).dot(R.row(rating.m));
     }                                             
@@ -318,6 +314,48 @@ void update(SparseMatrix &rating) {
   }
 }
 
+void update2(SparseMatrix &rating) {
+  if (FLAGS_unified) {
+    float c1 = (1 - FLAGS_eta * FLAGS_lambda);
+    float c2 = (1 - FLAGS_eta * FLAGS_lambdaw);
+    float LuRm = L.row(rating.u).dot(R.row(rating.m));
+    float e = LuRm + bu(rating.u) + bm(rating.m)
+      + (wu.row(rating.u) + wm.row(rating.m)).dot(movieMat.row(rating.m));
+    e -= rating.v;
+
+    MatrixXf LT(L.row(rating.u));
+    L.row(rating.u) = c1 * L.row(rating.u) - FLAGS_eta * e * R.row(rating.m);
+    R.row(rating.m) = c1 * R.row(rating.m) - FLAGS_eta * e * LT;
+    float t;
+
+    bu(rating.u) -= FLAGS_eta * e;
+    bm(rating.m) -= FLAGS_eta * e;
+
+    wu.row(rating.u) = c2 * wu.row(rating.u) - FLAGS_eta * e * movieMat.row(rating.m);
+    wm.row(rating.m) = c2 * wm.row(rating.m) - FLAGS_eta * e * movieMat.row(rating.m);
+
+    float nLu = rn(L,rating.u);
+    float nRm = rn(R,rating.m);
+    float nwu = rn(wu, rating.u);
+    float nwm = rn(wm, rating.m);
+
+#pragma omp critical
+    {
+      b -= FLAGS_eta * e;
+      wg = c2 * wg - FLAGS_eta * e * movieMat.row(rating.m);
+    }
+
+
+  } else {
+    float c1 = (1 - FLAGS_eta * FLAGS_lambda);
+    float e = L.row(rating.u).dot(R.row(rating.m));
+    e -= rating.v;
+    auto LT = L.row(rating.u);
+    L.row(rating.u) = c1 * L.row(rating.u) - FLAGS_eta * e * R.row(rating.m);
+    R.row(rating.m) = c1 * R.row(rating.m) - FLAGS_eta * e * LT;
+  }
+}
+
 void init() {
   L = Matrix<float,Dynamic,Dynamic,RowMajor>(nUser, FLAGS_rank);
   R = Matrix<float,Dynamic,Dynamic,RowMajor>(nMovie, FLAGS_rank);
@@ -325,6 +363,8 @@ void init() {
   wm = Matrix<float,Dynamic,Dynamic,RowMajor>::Zero(nMovie, 59);
   bu = VectorXf::Zero(nUser);
   bm = VectorXf::Zero(nMovie);
+  b = 0;
+  wg = RowVectorXf::Zero(59);
 
   printf("Average Rating = %f\n", avgRating);
   tic("a");
@@ -382,6 +422,7 @@ void DSGD() {
       for (int k = 0; k < FLAGS_cores; k++) {
         for (auto rating: subRawRatings[k][(j + k) % FLAGS_cores]) {
           update(rating);
+          //update2(rating);
         }
       } 
     }
