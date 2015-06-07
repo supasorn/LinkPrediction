@@ -287,10 +287,10 @@ We implemented DSGD entirely in C++. Since DSGD requires no communication betwee
     \label{fig:nomad}
   \end{subfigure}
   \vspace{-20pt}
-  \caption{Pseudo-code (left) and Illustration (right) NOMAD algorithm (from ~\cite{yun2013nomad}).}
+  \caption{Pseudo-code (left) and Illustration (right) NOMAD algorithm (from ~\cite{yun2013nomad}).}\label{fig:nomad}
 \end{figure}
 
-\todo{supasorn please write}
+We implement NOMAD \cite{yun2013nomad} described in Figure \ref{fig:nomad} in C++. Please refer to the paper for full description. NOMAD requires each worker to communicate with other workers via shared thread-safe queues to notify them of new tasks. We implement this using C++ POSIX threads with standard concurrent locks. Initial assignments of tasks are randomly distributed across all workers. In addition, we use dynamic load balancing by changing line 22 in Figure \ref{fig:nomad} to assign the current task to the worker with the smallest queue size. This no longer ensures sequential consistency as some ratings can be processed twice before some other ratings. However, we are able to gain up to 10-50\% faster convergence speed compared to the original random assignment due to the more balanced work-load. This improvement varies across different machines due to the different hardwards and CPU scheduling algorithms.
 
 \subsection{GraphLab}
 
