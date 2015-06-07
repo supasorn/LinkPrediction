@@ -262,7 +262,15 @@ computing limitation)   or if the changes in rmse falls below 0.005.
 
 \subsection{Distributed Stochastic Gradient Descent (DSGD)}
 
-We implement a variant of DSGD\cite{gemulla2011large} which is a bulk synchronization strategy. We split the rating matrix into $n \times n$ sub-matrices. In each sub iterations, we can find independent sub matrices in each row such that variables to be updated are completely disjoint. In our implementation, we randomly shuffle rows and columns corresponding to movies and users in the rating matrix to reduce the skewness of the matrix entires and make the distribution more uniform. Then we employ a simple scheduler where the $j^{th}$ sub-matrix in row $i$ will be processed at time $(i+j)$ mod $n$ to ensure indepedence.
+We implement a variant of DSGD\cite{gemulla2011large} which is a bulk
+synchronization strategy. We split the rating matrix into $n \times n$ sub-
+matrices. In each sub iterations, we can find independent sub matrices in each
+row such that variables to be updated are completely disjoint. In our
+implementation, we randomly shuffle rows and columns corresponding to movies
+and users in the rating matrix to reduce the skewness of the matrix entires
+and make the distribution more uniform. Then we employ a simple scheduler
+where the $j^{th}$ sub-matrix in row $i$ will be processed at time $(i+j)$ mod
+$n$ to ensure independence.
 
 \begin{figure}[h]
 \centering
@@ -270,7 +278,11 @@ We implement a variant of DSGD\cite{gemulla2011large} which is a bulk synchroniz
 \caption{\label{fig:split} Paralellizing the rating matrix with 5 processors. Sub-iterations are indicated by different colors. Each worker 1, 2, \ldots, 5 runs SGD on its own active area. }
 \end{figure}
 
-We implemented DSGD entirely in C++. Since DSGD requires no communication between processing units except synchronization at the end of each sub iteration, the implementation is relatively simple and is done using OpenMP shared-memory multiprocessing library. We also use an optimized Math library (Eigen) to peform fast matrix / vector operations. 
+We implemented DSGD entirely in C++. Since DSGD requires no communication
+between processing units except synchronization at the end of each sub
+iteration, the implementation is relatively simple and is done using OpenMP
+shared-memory multiprocessing library. We also use an optimized Math library
+(Eigen) to peform fast matrix / vector operations.
 
 \subsection{Non-locking Stochastic Multi-machine Algorithm for Asynchronous and Decentralized Matrix Completion (NOMAD)}
 
@@ -290,7 +302,19 @@ We implemented DSGD entirely in C++. Since DSGD requires no communication betwee
   \caption{Pseudo-code (left) and Illustration (right) NOMAD algorithm (from ~\cite{yun2013nomad}).}\label{fig:nomad}
 \end{figure}
 
-We implement NOMAD \cite{yun2013nomad} described in Figure \ref{fig:nomad} in C++. Please refer to the paper for full description. NOMAD requires each worker to communicate with other workers via shared thread-safe queues to notify them of new tasks. We implement this using C++ POSIX threads with standard concurrent locks. Initial assignments of tasks are randomly distributed across all workers. In addition, we use dynamic load balancing by changing line 22 in Figure \ref{fig:nomad} to assign the current task to the worker with the smallest queue size. This no longer ensures sequential consistency as some ratings can be processed twice before some other ratings. However, we are able to gain up to 10-50\% faster convergence speed compared to the original random assignment due to the more balanced work-load. This improvement varies across different machines due to the different hardwards and CPU scheduling algorithms.
+We implement NOMAD \cite{yun2013nomad} described in Figure \ref{fig:nomad} in
+C++. Please refer to the paper for full description. NOMAD requires each
+worker to communicate with other workers via shared thread-safe queues to
+notify them of new tasks. We implement this using C++ POSIX threads with
+standard concurrent locks. Initial assignments of tasks are randomly
+distributed across all workers. In addition, we use dynamic load balancing by
+changing line 22 in Figure \ref{fig:nomad} to assign the current task to the
+worker with the smallest queue size. This no longer ensures sequential
+consistency as some ratings can be processed twice before some other ratings.
+However, we are able to gain up to 10-50\% faster convergence speed compared
+to the original random assignment due to the more balanced work-load. This
+improvement varies across different machines due to the different hardwards
+and CPU scheduling algorithms.
 
 \subsection{GraphLab}
 
@@ -306,7 +330,7 @@ contains latent factor vector ($R_m$), weight vector $w_m$ and the bias term
 $b_m$ but also includes the feature vector $\phi(m)$.  The update function
  basically updates data in source and sink vertices using equations (\ref{eq:update1st})-(\ref{eq:updatelast}).
 
-\section{Experiments}
+\section{Experiments for Parallelizing SGD}
 
 In all of our experiments,  we initialize the latent matrices $U$ and $M$ by drawing a sample from a uniform distribution in the range $\left[0,\sqrt{\frac{\bar{r}}{0.25k}}\right)$ for each entry in the matrices where $\bar{r}$ is the average rating and $k$ is the matrix rank. Thus, $E[\hat{r}_{um}^0] = \bar{r}$.
 
@@ -340,7 +364,7 @@ values are shown in green while high values are shown in red.  Optimal $rmse$
 for each formulation are highlighted with a bold text and thick border.}
 \end{figure}
 
-\subsection{Experimenting with $D_s$}
+\subsection{Final Experimental Results}
 
 Using the optimal parameter from the previous section,
 we run
@@ -348,8 +372,8 @@ we run
 - plot rmse validation across parameter
 - report final rmse test with two algorithm -- bar chart
 
-\subsection{Experimenting with $D_{c}$}
 
+\section{Experimenting for Cold-start Problem}
 
 
 \section{Lessons Learned}
