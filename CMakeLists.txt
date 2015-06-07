@@ -31,3 +31,6 @@ target_link_libraries (nomad ceres ${CERES_LIBRARY_DEPENDENCIES} ${EXTRA_LIBS})
 
 add_executable (slice slice.cpp)
 target_link_libraries (slice ceres ${CERES_LIBRARY_DEPENDENCIES} ${EXTRA_LIBS})
+
+add_executable (slice2 slice2.cpp)
+target_link_libraries (slice2 ceres ${CERES_LIBRARY_DEPENDENCIES} ${EXTRA_LIBS})
