@@ -197,27 +197,48 @@ void load() {
   //}
 }
 
-float RMSE(vector<SparseMatrix> &ratings) {
+float RMSE(vector<SparseMatrix> &ratings, int coldStart = 0) {
   //tic("RMSE");
   double se = 0;
+  //double se2 = 0;
   int count = 0;
+
+  RowVectorXf RMean;
+  double bmMean;
+  RowVectorXf wmMean;
+  if (coldStart) {
+    RMean = R.colwise().sum() / R.rows();
+    bmMean = bm.sum() / bm.rows();
+    wmMean = wm.colwise().sum() / wm.rows();
+    //printf("%d %d\n", RMean.rows(), RMean.cols());
+    //printf("%d %d\n", R.row(0).rows(), R.row(0).cols());
+    //printf("%d %d\n", wm.row(0).rows(), wm.row(0).cols());
+    //printf("%d %d\n", wmMean.rows(), wmMean.cols());
+    //exit(0);
+  }
 #pragma omp parallel for
   for (int i = 0; i < ratings.size(); i++) {
     SparseMatrix rating = ratings[i];
     float e;
-    if (FLAGS_unified) {
-      e = L.row(rating.u).dot(R.row(rating.m)) + bu(rating.u) + bm(rating.m) + (wu.row(rating.u) + wm.row(rating.m)).dot(movieMat.row(rating.m));
-      //e = L.row(rating.u).dot(R.row(rating.m)) + b + bu(rating.u) + bm(rating.m) + (wg + wu.row(rating.u) + wm.row(rating.m)).dot(movieMat.row(rating.m));
-
+    if (coldStart) {
+        e = L.row(rating.u).dot(RMean) + bu(rating.u) + bmMean + (wu.row(rating.u) + wmMean).dot(movieMat.row(rating.m));
     } else {
-      e = L.row(rating.u).dot(R.row(rating.m));
-    }                                             
+      if (FLAGS_unified) {
+        e = L.row(rating.u).dot(R.row(rating.m)) + bu(rating.u) + bm(rating.m) + (wu.row(rating.u) + wm.row(rating.m)).dot(movieMat.row(rating.m));
+        //e = L.row(rating.u).dot(R.row(rating.m)) + b + bu(rating.u) + bm(rating.m) + (wg + wu.row(rating.u) + wm.row(rating.m)).dot(movieMat.row(rating.m));
+
+      } else {
+        e = L.row(rating.u).dot(R.row(rating.m));
+      }                                             
+    }
 #pragma omp critical 
     {
       se += double(e - rating.v) * double(e - rating.v);
+      //se2 += double(avgRating - rating.v) * double(avgRating - rating.v);
       count ++;
     }
   }
+  //printf("Baseline %f\n", sqrt(se2 / count));
   //toc("RMSE");
   return sqrt(se / count); 
 }
@@ -356,6 +377,17 @@ void update2(SparseMatrix &rating) {
   }
 }
 
+double baseline() {
+  double se = 0;
+  int count = 0;
+  for (int i = 0; i < rawRatings.size(); i++) {
+    SparseMatrix rating = rawRatings[i];
+    se += double(avgRating - rating.v) * double(avgRating - rating.v);
+    count ++;
+  }
+  return sqrt(se / count); 
+}
+
 void init() {
   L = Matrix<float,Dynamic,Dynamic,RowMajor>(nUser, FLAGS_rank);
   R = Matrix<float,Dynamic,Dynamic,RowMajor>(nMovie, FLAGS_rank);
@@ -379,17 +411,20 @@ void init() {
 void run() {
   printf(" i,   RMSE, time\n");
   printf(" 0, %.4f,    0  \n", RMSE(rawRatings));
+  double start0 = timestamp();
+  int interval = FLAGS_interval;
   for (int it = 0; it < FLAGS_maxit; it++) {
     printf("Iteration %d\n", it);
-    tic("one iteration");
     j=0;
     for (auto rating : rawRatings) {
       
       update(rating);
       j++;
     }
-    toc("one iteration");
-    printf("RMSE %f\n", RMSE(rawRatings));
+    if (timestamp() - start0 > interval) {
+      interval += FLAGS_interval;
+      printf("%2d, %.4f, %f \n", it+1, RMSE(rawRatings), timestamp() - start0);
+    }
   }
 }
 
@@ -561,6 +596,8 @@ int main(int argc, char** argv) {
   init();
   printParameters();
 
+  RMSE(rawRatings, 1);
+  printf("Baseline = %f\n", baseline());
   if (FLAGS_method == "NOMAD")
     NOMAD();
   else if (FLAGS_method == "DSGD")
@@ -571,6 +608,7 @@ int main(int argc, char** argv) {
   double trainRMSE = RMSE(rawRatings);
   double testRMSE = RMSE(rawRatingsTest);
   printf("Train RMSE :%f\nTest RMSE :%f\n", trainRMSE, testRMSE);
+  printf("Cold start %f\n", RMSE(rawRatingsTest, 1));
 
   //FILE *fo = fopen("output/crossvalidation.txt", "a"); 
   //fprintf(fo, "%f %f %f %f %f\n", FLAGS_rank, FLAGS_lambda, FLAGS_lambdaw, trainRMSE, testRMSE);
