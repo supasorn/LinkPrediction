@@ -35,6 +35,7 @@ from lib import n, m, ng, nht, \
     search_pure, search_pure_coor, run_pure, \
     search_unified, search_unified_coor, run_mf
 
+
 def overnightRun():
     # pylint: disable=W0622,W0612
     min_rmse_test, min_lambduh, min_k, min_lambduh_w = search_unified()
@@ -57,7 +58,9 @@ def main(argv):
     for flag_name in sorted(FLAGS.RegisteredFlags()):
         if flag_name not in ["?", "help", "helpshort", "helpxml"]:
             fl = FLAGS.FlagDict()[flag_name]
-            print "# " + fl.help + " (" + flag_name + "): " + str(fl.value)
+            with open('output/main.out', 'a') as f:
+                f.write(
+                    "# " + fl.help + " (" + flag_name + "): " + str(fl.value) + '\n')
 
     X_train, X_test = load(FLAGS.dataset)
     g = get_graph(X_train, FLAGS.rank)
@@ -65,11 +68,11 @@ def main(argv):
     rmse_train, rmse_test, L, R, wu, wm, bu, bm = \
         sgd_gl_edge(g, X_train, X_test,
                     FLAGS.lamb, FLAGS.rank, FLAGS.eta, Niter=FLAGS.maxit,
-                    unified=FLAGS.unified, lambduh_w=FLAGS.lamb_w)
+                    unified=FLAGS.unified, lambduh_w=FLAGS.lamb_w, output="main")
 
     print 'rmse_train', rmse_train
     print 'rmse_test', rmse_test
 
 if __name__ == '__main__':
-     main(sys.argv)
-    #overnightRun()
+    main(sys.argv)
+    # overnightRun()
