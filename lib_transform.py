@@ -260,8 +260,8 @@ def gen_cs_ratio(ratings_matrix, r_test=0.2, r_test2=0.3, r_validate=0, name='ra
         ratings_matrix_csc.copy(), train_movie_ids + validate_movie_ids).todok()
 
     for i, mid in enumerate(test_movie_ids):
-        if i % 1000 == 0:
-            print "test_movie_id", i
+        if i > 1:
+            break
         for uid in train_user_ids:
             test_ratings_mtx[uid, mid] = 0
         for uid in test_user_ids:

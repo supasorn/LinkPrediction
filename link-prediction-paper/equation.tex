@@ -55,9 +55,10 @@ University of Washington\\
 \section{Introduction}
 
 Our goal is to predict movie ratings for each user based on previous ratings
-and movie metadata including genres and user-provided tags.
-Specifically, we implement a learning model based on matrix
-factorization~\cite{koren:matrix} that addresses the following problems:
+and movie metadata including genres and user-provided tags. We model the
+prediction problem as a matrix factorization problem and explore a pure matrix
+factorization and a hybrid matrix factorization while attempt to address the
+following problems:
 
 \textbf{1) Run-time Performance.}
 We implemented three parallelization techniques that enable fast
@@ -65,8 +66,7 @@ learning algorithm:
 (a) Distributed Stochastic Gradient Descent (DSGD),
 (b) Non-locking Stochastic Multi-machine Algorithm for Asynchronous and Decentralized Matrix Completion (NOMAD) with dynamic load balancing, and
 (c) GraphLab Create with edge-centric update.
-We compared performance of these techniques and run the algorithm with
-\todo{NOMAD?}, which is the most performing algorithm.
+We compared performance of these techniques and also use them to compare the accuracy between pure and hybrid matrix factorization.
 
 
 \textbf{2) Cold-Start Problem.}
@@ -111,7 +111,7 @@ the standard problem, we obtain a test set ($D_{s,test}$) by taking out 20\%
 of all the ratings from the rating matrix and use the remaining as the
 training set ($D_{s,train}$). Due to our limited computational resources and
 time, it is infeasible to search for optimal parameters on the full training
-set. Therefore, we create a random submatrix for model search $D^*_{s}$ by
+set. Therefore, we create a random submatrix for validating model $D^*_{s}$ by
 sampling 20\% of movies and users and split $D^*_{s}$ into $D^*_{s,train}$ and
 $D^*_{s,validate}$ using $4:1$ ratio. Once all hyper-parameters are learned,
 we re-train our model on the full training set ($D_{s,train}$) and evaluate on
@@ -121,8 +121,7 @@ the test set ($D_{s,test}$).
 the cold-start problem, we obtain a test set ($D_{c,test}$) by taking out 20\%
 of   the {\em columns} from the rating matrix and use the remaining as the
 training set ($D_{c,train}$). This assures that all the ratings of each movie
-in the test set have not been included for model learning.   Similar to $D_s$, we create a submatrix $D^*_{c}$ using the same sampling method and
-split them into $D^*_{s,train}$ and $D^*_{s,validate}$ using $4:1$ ratio for
+in the test set have not been included for model learning.   Similar to $D_s$, we create a submatrix for validating model $D^*_{c}$ using the same sampling method and split them into $D^*_{s,train}$ and $D^*_{s,validate}$ using $4:1$ ratio for
 selecting optimal parameters.
 
 
@@ -332,15 +331,29 @@ $b_m$ but also includes the feature vector $\phi(m)$.  The update function
 
 \section{Experiments for Parallelizing SGD}
 
+Here we present subset of our experimental results from parallelizing SGD.
+
 In all of our experiments,  we initialize the latent matrices $U$ and $M$ by drawing a sample from a uniform distribution in the range $\left[0,\sqrt{\frac{\bar{r}}{0.25k}}\right)$ for each entry in the matrices where $\bar{r}$ is the average rating and $k$ is the matrix rank. Thus, $E[\hat{r}_{um}^0] = \bar{r}$.
 
 \subsection{Performance}
 
-\todo{machine description}
 
-\todo{Compare SGD (C++), DSGD, NOMAD and graphlab on small set and compared reduction of RMSE train over time?  (Or should we do RMSE test?)}
+\begin{figure}[ht]
+\centering
+\includegraphics[width=4in]{figures/performance}
+\caption{\label{fig:performance} Drop in RMSE from running SGD with different parallelization scheme for just over 200 seconds. }
+\end{figure}
 
-\todo{Do we have normal SGD on python?}
+We first run performance comparison to determine the best algorithm for
+searching for optimal parameters and comparing results  between pure and
+hybrid matrix factorization models.
+
+Due to limit time, we run different implementations of SGD using the
+validating dataset ($D_s^*$).  Figure~\ref{fig:performance}(a) shows the
+converging pattern for different implementations over the first 200 seconds.
+\todo{make & explain the final graph}
+
+\todo{Explain the NOMAD dynamic improvement }
 
 \subsection{Hyperparameter Optimization}
 
@@ -364,17 +377,24 @@ values are shown in green while high values are shown in red.  Optimal $rmse$
 for each formulation are highlighted with a bold text and thick border.}
 \end{figure}
 
-\subsection{Final Experimental Results}
+\subsection{Comparing the two formulation with Standard Dataset}
 
-Using the optimal parameter from the previous section,
-we run
+Using the optimal parameter from the previous section, we run SGD with DSGD to
+compare results between pure and hybrid matrix factorization.  \todo{We chose to run DSGD instead of NOMAD although NOMAD leads to better performance because the
+notion of iteration for NOMAD is less clear.}
 
-- plot rmse validation across parameter
-- report final rmse test with two algorithm -- bar chart
+As a baseline, we predict all ratings equals to the average rating of the whole training set and achieve $RMSE_{test}=1.053$. The pure matrix factorization leads to $RMSE_{test}=0.826$ while the hybrid matrix factoration achieve a $RMSE_{test}=0.822$.
 
+Both models lead to about $20\%$ decrease in $RMSE_test$ from the baseline
+However, the hybrid model only leads to minor improvement from pure matrix factorization ($0.48\%$) .  We believe that this is due
+to the fact that our data set only contains genres and tags, which might not
+be the most predictive features for movie ratings.  Mining for other metadata
+from websites such as IMDB might enhance the improvement from the hybrid
+model.
 
-\section{Experimenting for Cold-start Problem}
+\subsection{Experimenting for Cold-start Problem}
 
+\todo{supasorn please write}
 
 \section{Lessons Learned}
 
