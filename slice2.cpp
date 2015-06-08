@@ -101,9 +101,12 @@ int main(int argc, char** argv) {
   printf("%d\n", r.size());
   
   initSlice();
-  slice(60);
-  slice(70);
-  slice(80);
-  slice(90);
-  slice(100);
+  //slice(60);
+  //slice(70);
+  //slice(80);
+  //slice(90);
+  //slice(100);
+  slice(95);
+  slice(97);
+  slice(99);
 }

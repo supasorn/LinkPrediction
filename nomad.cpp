@@ -15,7 +15,7 @@ DEFINE_double(eta, 0.01, "");
 DEFINE_double(lambda, 0.01, "");
 DEFINE_double(lambdaw, 0.01, "");
 DEFINE_bool(big, false, "");
-DEFINE_bool(cold, false, "");
+DEFINE_int32(cold, 0, "");
 DEFINE_int32(rank, 5, "");
 DEFINE_int32(lim, 0, "");
 DEFINE_int32(maxit, 20, "");
@@ -579,8 +579,9 @@ int main(int argc, char** argv) {
 
   if (FLAGS_cold) {
     FLAGS_movie = "data/movies.mtx";
-    FLAGS_data = "data/ratings_cs_train.mtx";
-    FLAGS_datatest = "data/ratings_cs_test.mtx";
+    FLAGS_data = "data/ratings_train_" + to_string(FLAGS_cold) + ".mtx";
+    FLAGS_datatest = "data/ratings_test_" + to_string(FLAGS_cold) + ".mtx";
+    printf("Cold %d\n", FLAGS_cold);
   } else if (FLAGS_big) {
     FLAGS_movie = "data/movies.mtx";
     FLAGS_data = "data/ratings_train.mtx";
