@@ -310,7 +310,7 @@ distributed across all workers. In addition, we use dynamic load balancing by
 changing line 22 in Figure \ref{fig:nomad} to assign the current task to the
 worker with the smallest queue size. This no longer ensures sequential
 consistency as some ratings can be processed twice before some other ratings.
-However, we are able to gain up to 10-50\% faster convergence speed compared
+However, we are able to gain up to 10-40\% faster convergence speed compared
 to the original random assignment due to the more balanced work-load. This
 improvement varies across different machines due to the different hardwards
 and CPU scheduling algorithms.
@@ -351,7 +351,7 @@ hybrid matrix factorization models.
 Due to limit time, we run different implementations of SGD using the
 validating dataset ($D_s^*$).  Figure~\ref{fig:performance}(a) shows the
 converging pattern for different implementations over the first 200 seconds.
-\todo{make & explain the final graph}
+\todo{make and explain the final graph}
 
 \todo{Explain the NOMAD dynamic improvement }
 
@@ -359,8 +359,8 @@ converging pattern for different implementations over the first 200 seconds.
 
 We run a grid search to optimize hyperparameters for both pure and hybrid
 matrix factorization.
-Due to resource limitation, we search for parameter using a sampled submatrix
-$D_s^*$ and run only DSGD algorithm as \todo{why?}
+Due to the resource limitation, we search for optimal hyperparameters using a sampled submatrix
+$D_s^*$ and DSGD algorithm where the number of iterations or epoches can be deterministcally limited to some value (as opposed to NOMAD). 
 
 We search over $k \in \{5, 10, 20\}$, $\lambda \in \{
 0.001, 0.01, 0.1, 1, 10\}$ for both formulation and $\lambda_m \in \{
@@ -377,11 +377,10 @@ values are shown in green while high values are shown in red.  Optimal $rmse$
 for each formulation are highlighted with a bold text and thick border.}
 \end{figure}
 
-\subsection{Comparing the two formulation with Standard Dataset}
+\subsection{Comparing the two formulations with Standard Dataset}
 
-Using the optimal parameter from the previous section, we run SGD with DSGD to
-compare results between pure and hybrid matrix factorization.  \todo{We chose to run DSGD instead of NOMAD although NOMAD leads to better performance because the
-notion of iteration for NOMAD is less clear.}
+Using the optimal parameters from the previous section, we run SGD with DSGD to
+compare results between pure and hybrid matrix factorization. For comparison purposes, we again use DSGD as it has a more deterministic update routine which allows us to fairly limit the number of iterations for both formulations.}
 
 As a baseline, we predict all ratings equals to the average rating of the whole training set and achieve $RMSE_{test}=1.053$. The pure matrix factorization leads to $RMSE_{test}=0.826$ while the hybrid matrix factoration achieve a $RMSE_{test}=0.822$.
 
