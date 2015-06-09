@@ -11,6 +11,7 @@
         {"PercentRemoved": 70,"RMSEtrain": 0.770364,"RMSEtest": 0.829785},
         {"PercentRemoved": 80,"RMSEtrain": 0.769837,"RMSEtest": 0.833001},
         {"PercentRemoved": 90,"RMSEtrain": 0.769165,"RMSEtest": 0.843872},
+        {"PercentRemoved": 99,"RMSEtrain": 0.770125,"RMSEtest": 1.154173},
         {"PercentRemoved": 100,"RMSEtrain": 0.768607,"RMSEtest": 3.206407}
       ],
       "transform": [
