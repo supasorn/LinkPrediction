@@ -209,7 +209,7 @@ Stochastic Gradient Descent (DSGD)~\cite{gemulla2011large}, or
 NOMAD~\cite{yun2013nomad}.
 
 Our final unified collaborative filtering model combines matrix
-factorization with a feature-based learning to address cold-start problem:
+factorization with a feature-based learning :
 
 \begin{multline}
 \min_{L, R, b_u, b_v, w_u, w_m} \frac{1}{2}\sum_{r_{um}} \left\{(L_u \cdot R_m + (w_u + w_m) \cdot \phi(m) + b_u + b_m - r_{um})^2\right\}\\ + \frac{\lambda_u}{2}\|L\|^2_F + \frac{\lambda_m}{2}\|R\|^2_F + \frac{\lambda_{w_u}}{2}\sum_u\|w_u\|^2_2 + \frac{\lambda_{w_m}}{2}\sum_m\|w_m\|^2_2\label{eq:main}
@@ -405,13 +405,19 @@ model.
 
 \subsection{Experimenting for Cold-start Problem}
 
-\todo{supasorn please write}
+\begin{figure}[h]
+\centering
+\includegraphics[width=2.2in]{figures/coldstart}
+\caption{\label{fig:coldstart} Cold-start}
+\end{figure}
+
+We test our unified formulation on a cold-start problem with varying degree of ``unknowns,'' starting from a test set where 60\% of the input ratings for the movies of interest are dropped, to a set where we have no rating information at all. RMSE test for . The result shows that our current formulation does not well handle the absolute cold-start case where no ratings are given. In such case, the predicted ratings will completely rely on genres and user-provided tag information, which may not be sufficiently predictive to begin with. The more predictive term for our learned model will come from the product of latent variables $L, R$, and once these are unspecified or set to intial values in the cold-start case, the predictive ability of this model is highly degraded.
 
 \section{Lessons Learned}
 
-Also, implementing DSGD and NOMAD in C++ leads to roughly \todo{XXXX times} speed-ups.
+In our earlier implementation, we did not normalize ratings which leads to a divergence of the gradient descent algorithm. Decreasing the learning rate, eta, helps in that situation, but we found that normalizing the feature vectors allows us to conveniently discover a fixed threshold for eta that always leads to convergence. 
 
-In our earlier implementation, we did not normalize ratings and normalize
+GraphLab Create is a great platform for abstracting the scheduling algorithm if the problem can be formulated on a graph, however, the performance bottleneck seems to be the update function which is written in Python code. And currently it is slower than a single-threaded C++ code. We also spent a lot of time coding, debugging, and getting GraphLab to work correctly. The IO speed is very critical when working with big data, and it is one of the weak aspects of Python. We wish that converting Numpy Sparse Matrix to SGraph could be done more conveniently or automatically by GraphLab. And GraphLab crashed our computers a couple of times when we try to run it overnight due to memory errors, and hypothetically CPU overheating.
 
 \section{Acknowledgement}
 We use figures from \cite{yun2013nomad} for DSGD and NOMAD algorithm descriptions.
