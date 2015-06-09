@@ -76,7 +76,9 @@ users.  We address this problem by using a hybrid model combining matrix
 factorization and content-based filtering techniques using metadata as
 features. To address high dimensionality, we compress tags feature vectors
 using hash-kernel techniques~\cite{shi:hashkernels}.  We compare results
-from the hybrid model with pure matrix factorization.  The results show that \todo{summarize result here}
+from the hybrid model with pure matrix factorization.
+
+% The results show that \todo{summarize result here}
 
 
 \section{Dataset \& Preprocessing}
@@ -346,7 +348,7 @@ In all of our experiments,  we initialize the latent matrices $U$ and $M$ by dra
 We first run performance comparison to determine the best algorithm for
 searching for optimal parameters and comparing results  between pure and
 hybrid matrix factorization models.
-We run all the algorithm on single machine \todo{… please put machine description here …}.
+We run all the algorithm on single machine with four 8-core Intel X7650 (2.28GHz) with 32GB of RAM. Due to some limitation (or bug) in GraphLab, the number of lambda workers does not go beyond 16 on this particular machine, so we limit the number of threads for DSGD and NOMAD to 16 for fairness.
 
 Due to limit time, we run different implementations of SGD using the
 validating dataset ($D_s^*$) and output RMSE at end the of each epoch expect
@@ -411,13 +413,17 @@ model.
 \caption{\label{fig:coldstart} Cold-start}
 \end{figure}
 
-We test our unified formulation on a cold-start problem with varying degree of ``unknowns,'' starting from a test set where 60\% of the input ratings for the movies of interest are dropped, to a set where we have no rating information at all. RMSE test for . The result shows that our current formulation does not well handle the absolute cold-start case where no ratings are given. In such case, the predicted ratings will completely rely on genres and user-provided tag information, which may not be sufficiently predictive to begin with. The more predictive term for our learned model will come from the product of latent variables $L, R$, and once these are unspecified or set to intial values in the cold-start case, the predictive ability of this model is highly degraded.
+We test our unified formulation on a cold-start problem with varying degree of ``unknowns,'' starting from a test set where 60\% of the input ratings for the movies of interest are dropped, to a set where we have no rating information at all. RMSE test for. The result shows that our current formulation does not well handle the absolute cold-start case where no ratings are given. In such case, the predicted ratings will completely rely on genres and user-provided tag information, which may not be sufficiently predictive to begin with. The more predictive term for our learned model will come from the product of latent variables $L, R$, and once these are unspecified or set to intial values in the cold-start case, the predictive ability of this model is highly degraded.
+
+Similar to the previous section,  we would like to explore the hybrid model with broader set of features.  This requires further data integration by integrating MovieLens dataset with other database such as the IMDB.  We hypothesize that with more predictive features, hybrid matrix factorization will perform better in cold start situation.
 
 \section{Lessons Learned}
 
-In our earlier implementation, we did not normalize ratings which leads to a divergence of the gradient descent algorithm. Decreasing the learning rate, eta, helps in that situation, but we found that normalizing the feature vectors allows us to conveniently discover a fixed threshold for eta that always leads to convergence. 
+In our earlier implementation, we did not normalize ratings which leads to a divergence of the gradient descent algorithm. Decreasing the learning rate, eta, helps in that situation, but we found that normalizing the feature vectors allows us to conveniently discover a fixed threshold for eta that always leads to convergence.
 
 GraphLab Create is a great platform for abstracting the scheduling algorithm if the problem can be formulated on a graph, however, the performance bottleneck seems to be the update function which is written in Python code. And currently it is slower than a single-threaded C++ code. We also spent a lot of time coding, debugging, and getting GraphLab to work correctly. The IO speed is very critical when working with big data, and it is one of the weak aspects of Python. We wish that converting Numpy Sparse Matrix to SGraph could be done more conveniently or automatically by GraphLab. And GraphLab crashed our computers a couple of times when we try to run it overnight due to memory errors, and hypothetically CPU overheating.
+That said, we have not experiment with using Cython with GraphLab or using GraphLab in a distributed environment where there are multiple machines.
+In that situation, the same GraphLab implementation  might excel due to GraphLab's scheduling algorithm that scales in distributed environment.
 
 \section{Acknowledgement}
 We use figures from \cite{yun2013nomad} for DSGD and NOMAD algorithm descriptions.
