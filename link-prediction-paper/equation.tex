@@ -358,9 +358,10 @@ converging pattern for different implementations over the first 200 seconds.
 \subsection{Hyperparameter Optimization}
 
 We run a grid search to optimize hyperparameters for both pure and hybrid
-matrix factorization.
-Due to the resource limitation, we search for optimal hyperparameters using a sampled submatrix
-$D_s^*$ and DSGD algorithm where the number of iterations or epoches can be deterministcally limited to some value (as opposed to NOMAD). 
+matrix factorization. Due to the resource limitation, we search for optimal
+hyperparameters using a sampled submatrix $D_s^*$ and DSGD algorithm where the
+number of iterations or epoches can be deterministcally limited to some value
+(as opposed to NOMAD).
 
 We search over $k \in \{5, 10, 20\}$, $\lambda \in \{
 0.001, 0.01, 0.1, 1, 10\}$ for both formulation and $\lambda_m \in \{
@@ -379,8 +380,11 @@ for each formulation are highlighted with a bold text and thick border.}
 
 \subsection{Comparing the two formulations with Standard Dataset}
 
-Using the optimal parameters from the previous section, we run SGD with DSGD to
-compare results between pure and hybrid matrix factorization. For comparison purposes, we again use DSGD as it has a more deterministic update routine which allows us to fairly limit the number of iterations for both formulations.}
+Using the optimal parameters from the previous section, we run SGD with DSGD
+to compare results between pure and hybrid matrix factorization. For
+comparison purposes, we again use DSGD as it has a more deterministic update
+routine which allows us to fairly limit the number of iterations for both
+formulations.
 
 As a baseline, we predict all ratings equals to the average rating of the whole training set and achieve $RMSE_{test}=1.053$. The pure matrix factorization leads to $RMSE_{test}=0.826$ while the hybrid matrix factoration achieve a $RMSE_{test}=0.822$.
 
