@@ -310,8 +310,7 @@ distributed across all workers. In addition, we use dynamic load balancing by
 changing line 22 in Figure \ref{fig:nomad} to assign the current task to the
 worker with the smallest queue size. This no longer ensures sequential
 consistency as some ratings can be processed twice before some other ratings.
-However, we are able to gain up to 10-40\% faster convergence speed compared
-to the original random assignment due to the more balanced work-load. This
+However, we are able to gain up to approximately 40\% faster convergence speed compared to the original random assignment due to the more balanced work-load. This
 improvement varies across different machines due to the different hardwards
 and CPU scheduling algorithms.
 
@@ -340,27 +339,36 @@ In all of our experiments,  we initialize the latent matrices $U$ and $M$ by dra
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=4in]{figures/performance}
-\caption{\label{fig:performance} Drop in RMSE from running SGD with different parallelization scheme for just over 200 seconds. }
+\includegraphics[width=\linewidth]{figures/performance}
+\caption{\label{fig:performance} Drop in RMSE from running SGD with different parallelization scheme for: (a) different implementation during just over 200 seconds, (b, c): NOMAD with and without dynamic load balancing.}
 \end{figure}
 
 We first run performance comparison to determine the best algorithm for
 searching for optimal parameters and comparing results  between pure and
 hybrid matrix factorization models.
+We run all the algorithm on single machine \todo{… please put machine description here …}.
 
 Due to limit time, we run different implementations of SGD using the
-validating dataset ($D_s^*$).  Figure~\ref{fig:performance}(a) shows the
+validating dataset ($D_s^*$) and output RMSE at end the of each epoch expect
+for NOMAD which is harder to detect when an epoch has ended so we choose to
+print RMSE every 5 seconds instead.  Figure~\ref{fig:performance}(a) shows the
 converging pattern for different implementations over the first 200 seconds.
-\todo{make and explain the final graph}
+GraphLab which is implemented in python is the slowest as it only finishes 4
+epochs and reach $RMSE_{train}=0.852$ during the period.  Meanwhile, single-
+thread SGD in C++ finish about 4 epochs and reach $RMSE_{train}=0.825$.
+Parallelizing with DSGD leads to about 7 times speed up as the algorithm
+finishes 29 epochs during the same amount of time and reach
+$RMSE_{train}=0.701$. NOMAD further improve the performance as reach
+$RMSE_{train}=0.643$.
 
-\todo{Explain the NOMAD dynamic improvement }
+Figure~\ref{fig:performance}(b) shows faster convergence rate of our NOMAD implementation with dynamic load balancing in comparison to the original NOMAD.  The table shows that it approximately takes 40\% more time to achieve the same level of RMSE without dynamic load balaning.
 
 \subsection{Hyperparameter Optimization}
 
 We run a grid search to optimize hyperparameters for both pure and hybrid
 matrix factorization. Due to the resource limitation, we search for optimal
 hyperparameters using a sampled submatrix $D_s^*$ and DSGD algorithm where the
-number of iterations or epoches can be deterministcally limited to some value
+number of iterations or epochs can be deterministcally limited to some value
 (as opposed to NOMAD).
 
 We search over $k \in \{5, 10, 20\}$, $\lambda \in \{
@@ -404,8 +412,6 @@ model.
 Also, implementing DSGD and NOMAD in C++ leads to roughly \todo{XXXX times} speed-ups.
 
 In our earlier implementation, we did not normalize ratings and normalize
-
-\section{Conclusion}
 
 \section{Acknowledgement}
 We use figures from \cite{yun2013nomad} for DSGD and NOMAD algorithm descriptions.
