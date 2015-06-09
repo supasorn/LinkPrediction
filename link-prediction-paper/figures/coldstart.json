@@ -1,0 +1,104 @@
+{
+  "width": 200,
+  "height": 200,
+  "padding": "auto",
+  "data": [
+    {
+      "name": "raw",
+      "format": {"parse": {"PercentRemoved": "number","RMSEtest": "number"}},
+      "values": [
+        {"PercentRemoved": 60,"RMSEtrain": 0.77093,"RMSEtest": 0.827635},
+        {"PercentRemoved": 70,"RMSEtrain": 0.770364,"RMSEtest": 0.829785},
+        {"PercentRemoved": 80,"RMSEtrain": 0.769837,"RMSEtest": 0.833001},
+        {"PercentRemoved": 90,"RMSEtrain": 0.769165,"RMSEtest": 0.843872},
+        {"PercentRemoved": 100,"RMSEtrain": 0.768607,"RMSEtest": 3.206407}
+      ],
+      "transform": [
+        {"type": "filter","test": "d.data.PercentRemoved!==null"},
+        {"type": "filter","test": "d.data.RMSEtest!==null"}
+      ]
+    },
+    {"name": "table","source": "raw","transform": []}
+  ],
+  "marks": [
+    {
+      "_name": "cell",
+      "type": "group",
+      "properties": {"enter": {"width": {"value": 200},"height": {"value": 200}}},
+      "scales": [
+        {
+          "name": "x",
+          "type": "linear",
+          "domain": {"data": "table","field": "data.PercentRemoved"},
+          "range": [0,200],
+          "zero": false,
+          "reverse": false,
+          "round": true,
+          "nice": true
+        },
+        {
+          "name": "y",
+          "type": "linear",
+          "domain": {"data": "table","field": "data.RMSEtest"},
+          "range": [200,0],
+          "zero": true,
+          "reverse": false,
+          "round": true,
+          "nice": true
+        }
+      ],
+      "axes": [
+        {
+          "type": "x",
+          "scale": "x",
+          "grid": true,
+          "layer": "back",
+          "properties": {
+            "grid": {"stroke": {"value": "black"},"opacity": {"value": 0.08}},
+            "labels": {"text": {"template": "{{data | number:'.3s'}}"}}
+          },
+          "title": "PercentRemoved",
+          "titleOffset": 38,
+          "ticks": 5
+        },
+        {
+          "type": "y",
+          "scale": "y",
+          "grid": true,
+          "layer": "back",
+          "properties": {
+            "grid": {"stroke": {"value": "black"},"opacity": {"value": 0.08}},
+            "labels": {"text": {"template": "{{data | number:'.3s'}}"}}
+          },
+          "title": "RMSEtest",
+          "titleOffset": 62
+        }
+      ],
+      "marks": [
+        {
+          "type": "line",
+          "from": {
+            "data": "table",
+            "transform": [{"type": "sort","by": "-data.PercentRemoved"}]
+          },
+          "properties": {
+            "enter": {
+              "x": {"scale": "x","field": "data.PercentRemoved"},
+              "y": {"scale": "y","field": "data.RMSEtest"},
+              "stroke": {"value": "steelblue"},
+              "strokeWidth": {"value": 2}
+            },
+            "update": {
+              "x": {"scale": "x","field": "data.PercentRemoved"},
+              "y": {"scale": "y","field": "data.RMSEtest"},
+              "stroke": {"value": "steelblue"},
+              "strokeWidth": {"value": 2}
+            }
+          }
+        }
+      ],
+      "legends": []
+    }
+  ],
+  "scales": []
+}
